@@ -57,21 +57,21 @@ export default function Hero() {
               </Link>
             </div>
 
-            {/* Trust Bar (IBM Plex Mono inline stats) */}
+            {/* Real Feature & Capabilities Trust Bar */}
             <div className="pt-6 border-t border-[#E2E4E1] dark:border-[#2A3547] flex flex-wrap items-center gap-6 font-mono text-xs text-[#5B6472] dark:text-[#9AA5B4]">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-[#14213D] dark:text-[#F6F7F5]">2,400+</span>
-                <span>donors registered</span>
+                <span className="font-bold text-[#14213D] dark:text-[#F6F7F5]">🛰️ PostGIS</span>
+                <span>Spatial Radius Matching</span>
               </div>
               <span className="hidden sm:inline text-gray-300 dark:text-gray-700">•</span>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-[#14213D] dark:text-[#F6F7F5]">&lt; 8 min</span>
-                <span>avg response time</span>
+                <span className="font-bold text-[#14213D] dark:text-[#F6F7F5]">🔒 Privacy Shield</span>
+                <span>Masked Contact Protection</span>
               </div>
               <span className="hidden sm:inline text-gray-300 dark:text-gray-700">•</span>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-[#0F766E] dark:text-[#6FD6BC]">94%</span>
-                <span>fulfillment rate</span>
+                <span className="font-bold text-[#0F766E] dark:text-[#6FD6BC]">⚡ Instant Dispatch</span>
+                <span>SMS & Email Alerts</span>
               </div>
             </div>
 
