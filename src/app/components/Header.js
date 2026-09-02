@@ -51,6 +51,7 @@ export default function Header() {
     .slice(0, 2) || user?.email?.substring(0, 2).toUpperCase() || "U";
 
   const rolePills = [
+    { name: "Search", href: "/search" },
     { name: "Donor", href: "/dashboard/donor" },
     { name: "Hospital", href: "/dashboard/hospital" },
     { name: "Emergencies", href: "/requests" },

@@ -4,38 +4,41 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-interface DonorDetails {
+interface UserProfileState {
+  fullName: string;
+  email: string;
+  phone: string;
+  role: "DONOR" | "HOSPITAL" | "BLOOD_BANK";
+  
+  // Donor fields
   bloodGroup: string;
   lastDonationDate: string;
   totalDonations: number;
   available: boolean;
-  weightKg: number;
-  hemoglobin: number;
-  reliabilityScore: number;
-  verified: boolean;
-}
-
-interface HospitalDetails {
+  weightKg: string;
+  hemoglobin: string;
+  city: string;
+  
+  // Hospital fields
   hospitalName: string;
   licenseNumber: string;
   traumaLevel: string;
-  icuBeds: number;
+  icuBeds: string;
   emergencyPhone: string;
-  address: string;
-  verified: boolean;
-}
+  hospitalAddress: string;
 
-interface BloodBankDetails {
+  // Blood Bank fields
   bloodBankName: string;
   drugLicense: string;
-  storageCapacityUnits: number;
+  storageCapacityUnits: string;
   hasPlateletAgitator: boolean;
   hasDeepFreezer: boolean;
   operatingHours: string;
-  emergencyPhone: string;
-  address: string;
-  verified: boolean;
+  bankPhone: string;
+  bankAddress: string;
 }
+
+const STORAGE_KEY = "bloodlink_user_profile_v2";
 
 export default function ProfilePage() {
   const supabase = createClient();
@@ -43,87 +46,137 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
-  // Base user info
-  const [user, setUser] = useState<any>(null);
-  const [fullName, setFullName] = useState("Dr. Govindraj Borade");
-  const [email, setEmail] = useState("boradegovindraj17@gmail.com");
-  const [phone, setPhone] = useState("+91 98765 43210");
-  const [role, setRole] = useState<"DONOR" | "HOSPITAL" | "BLOOD_BANK">("DONOR");
-
-  // Role details state
-  const [donor, setDonor] = useState<DonorDetails>({
+  // Clean, 100% user-input driven state
+  const [profile, setProfile] = useState<UserProfileState>({
+    fullName: "",
+    email: "",
+    phone: "",
+    role: "DONOR",
     bloodGroup: "O+",
-    lastDonationDate: "2026-07-10",
-    totalDonations: 4,
+    lastDonationDate: "",
+    totalDonations: 0,
     available: true,
-    weightKg: 68,
-    hemoglobin: 14.2,
-    reliabilityScore: 98.5,
-    verified: true
-  });
-
-  const [hospital, setHospital] = useState<HospitalDetails>({
-    hospitalName: "Apex Emergency Trauma Care",
-    licenseNumber: "MH-NABH-2026-8819",
-    traumaLevel: "Level 1 Tertiary Care",
-    icuBeds: 45,
-    emergencyPhone: "+91 22 2456 7890",
-    address: "Station Road, Ward 4, Mumbai, MH",
-    verified: true
-  });
-
-  const [bloodBank, setBloodBank] = useState<BloodBankDetails>({
-    bloodBankName: "Central Red Cross Blood Center",
-    drugLicense: "FDA-DL-99420-B",
-    storageCapacityUnits: 1200,
+    weightKg: "",
+    hemoglobin: "",
+    city: "",
+    hospitalName: "",
+    licenseNumber: "",
+    traumaLevel: "Level 1 Emergency Center",
+    icuBeds: "",
+    emergencyPhone: "",
+    hospitalAddress: "",
+    bloodBankName: "",
+    drugLicense: "",
+    storageCapacityUnits: "",
     hasPlateletAgitator: true,
     hasDeepFreezer: true,
-    operatingHours: "24/7 Round the Clock",
-    emergencyPhone: "+91 22 2890 1234",
-    address: "Civil Hospital Complex, Mumbai, MH",
-    verified: true
+    operatingHours: "24/7 Operations",
+    bankPhone: "",
+    bankAddress: ""
   });
 
+  // Load user data on mount
   useEffect(() => {
-    async function loadProfile() {
+    async function loadData() {
       try {
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setUser(user);
-          setEmail(user.email || "user@bloodlink.org");
-          if (user.user_metadata?.full_name) {
-            setFullName(user.user_metadata.full_name);
-          }
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", user.id)
-            .single();
-
-          if (profile) {
-            if (profile.full_name) setFullName(profile.full_name);
-            if (profile.phone) setPhone(profile.phone);
-            if (profile.role) setRole(profile.role as any);
+        // 1. First check LocalStorage for fast instant retrieval
+        const localSaved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+        let loadedState: Partial<UserProfileState> = {};
+        if (localSaved) {
+          try {
+            loadedState = JSON.parse(localSaved);
+          } catch (e) {
+            console.warn("Could not parse local profile storage", e);
           }
         }
+
+        // 2. Check Supabase Auth user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          loadedState.email = user.email || loadedState.email || "";
+          if (user.user_metadata?.full_name && !loadedState.fullName) {
+            loadedState.fullName = user.user_metadata.full_name;
+          }
+
+          // 3. Query Supabase database profile if available
+          try {
+            const { data: dbProfile } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .single();
+
+            if (dbProfile) {
+              if (dbProfile.full_name) loadedState.fullName = dbProfile.full_name;
+              if (dbProfile.phone) loadedState.phone = dbProfile.phone;
+              if (dbProfile.role) loadedState.role = dbProfile.role as any;
+            }
+
+            if (dbProfile?.role === "DONOR" || loadedState.role === "DONOR") {
+              const { data: donorDb } = await supabase
+                .from("donor_profiles")
+                .select("*")
+                .eq("user_id", user.id)
+                .single();
+              if (donorDb) {
+                if (donorDb.blood_group) loadedState.bloodGroup = donorDb.blood_group;
+                if (donorDb.available !== undefined) loadedState.available = donorDb.available;
+                if (donorDb.last_donation_date) loadedState.lastDonationDate = donorDb.last_donation_date;
+                if (donorDb.total_donations !== undefined) loadedState.totalDonations = donorDb.total_donations;
+              }
+            }
+          } catch (e) {
+            // silent fallback
+          }
+        }
+
+        setProfile((prev) => ({
+          ...prev,
+          ...loadedState
+        }));
+
       } catch (err) {
-        console.warn("Using local profile data fallback:", err);
+        console.error("Error loading user profile:", err);
       } finally {
         setLoading(false);
       }
     }
-    loadProfile();
+
+    loadData();
   }, []);
 
-  // Cooldown calculation logic (Standard 90-day cooldown between whole blood donations)
+  // Cooldown calculation purely derived from user's entered lastDonationDate
   const calculateCooldown = (lastDateStr: string) => {
-    if (!lastDateStr) return { eligible: true, daysSince: 999, daysRemaining: 0, progress: 100 };
+    if (!lastDateStr) {
+      return {
+        hasDonatedBefore: false,
+        eligible: true,
+        daysSince: null,
+        daysRemaining: 0,
+        progress: 100,
+        nextEligibleDate: "Ready to donate anytime"
+      };
+    }
+
     const lastDate = new Date(lastDateStr);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - lastDate.getTime());
+    const diffTime = now.getTime() - lastDate.getTime();
     const daysSince = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Future date guard
+    if (daysSince < 0) {
+      return {
+        hasDonatedBefore: true,
+        eligible: false,
+        daysSince: 0,
+        daysRemaining: 90,
+        progress: 0,
+        nextEligibleDate: "Future date entered"
+      };
+    }
+
     const COOLDOWN_DAYS = 90;
     const daysRemaining = Math.max(0, COOLDOWN_DAYS - daysSince);
     const progress = Math.min(100, Math.round((daysSince / COOLDOWN_DAYS) * 100));
@@ -132,6 +185,7 @@ export default function ProfilePage() {
     const nextEligibleDate = new Date(lastDate.getTime() + COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
 
     return {
+      hasDonatedBefore: true,
       eligible,
       daysSince,
       daysRemaining,
@@ -140,36 +194,95 @@ export default function ProfilePage() {
     };
   };
 
-  const cooldown = calculateCooldown(donor.lastDonationDate);
+  const cooldown = calculateCooldown(profile.lastDonationDate);
+
+  const handleFieldChange = (field: keyof UserProfileState, value: any) => {
+    setProfile((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSaveMessage("");
+
     try {
+      // 1. Persist immediately to LocalStorage so it NEVER gets lost
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+        localStorage.setItem("bloodlink_user_phone", profile.phone);
+        localStorage.setItem("bloodlink_user_name", profile.fullName);
+        localStorage.setItem("bloodlink_user_role", profile.role);
+      }
+
+      // 2. Persist to Supabase if connected
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from("profiles").upsert({
           id: user.id,
-          full_name: fullName,
-          phone,
-          role,
+          full_name: profile.fullName.trim(),
+          phone: profile.phone.trim(),
+          role: profile.role,
           is_profile_complete: true,
           updated_at: new Date().toISOString()
         });
+
+        if (profile.role === "DONOR") {
+          await supabase.from("donor_profiles").upsert({
+            user_id: user.id,
+            blood_group: profile.bloodGroup,
+            available: profile.available,
+            last_donation_date: profile.lastDonationDate || null,
+            total_donations: Number(profile.totalDonations) || 0,
+            updated_at: new Date().toISOString()
+          }, { onConflict: "user_id" });
+        } else if (profile.role === "HOSPITAL") {
+          await supabase.from("hospital_profiles").upsert({
+            user_id: user.id,
+            hospital_name: profile.hospitalName.trim(),
+            phone: profile.emergencyPhone.trim() || profile.phone.trim(),
+            address: profile.hospitalAddress.trim(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: "user_id" });
+        } else if (profile.role === "BLOOD_BANK") {
+          await supabase.from("blood_bank_profiles").upsert({
+            user_id: user.id,
+            blood_bank_name: profile.bloodBankName.trim(),
+            phone: profile.bankPhone.trim() || profile.phone.trim(),
+            address: profile.bankAddress.trim(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: "user_id" });
+        }
       }
-      setSaveMessage("✅ Profile settings & medical status successfully saved!");
+
+      setSaveMessage("✅ Profile and contact details successfully saved!");
       setTimeout(() => setSaveMessage(""), 4000);
     } catch (err: any) {
-      setSaveMessage("⚠️ Saved locally in session.");
+      console.warn("Saved to local storage:", err);
+      setSaveMessage("✅ Profile saved locally on this device!");
+      setTimeout(() => setSaveMessage(""), 4000);
     } finally {
       setSaving(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center font-mono text-xs text-secondary-var">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 border-2 border-[#D62828] border-t-transparent rounded-full animate-spin" />
+          <span>Loading your profile...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
       
-      {/* Top Navigation & Header */}
+      {/* Top Banner Navigation & Role Selection */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#182233] p-6 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -181,25 +294,26 @@ export default function ProfilePage() {
               <span>Home</span>
             </Link>
             <span className="text-[10px] font-mono font-black text-[#0F766E] dark:text-[#6FD6BC] bg-[#0F766E]/10 dark:bg-[#6FD6BC]/10 px-2.5 py-1 rounded-full uppercase">
-              Verified Medical Profile
+              User Profile
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-[#14213D] dark:text-white tracking-tight">
-            Account & Role Management
+            {profile.fullName || "My Profile"}
           </h1>
           <p className="text-xs md:text-sm text-[#5B6472] dark:text-[#9AA5B4]">
-            Manage donor eligibility, donation cooldown timers, emergency dispatch availability, and hospital certifications.
+            Enter your personal contact info, medical details, and emergency operating parameters.
           </p>
         </div>
 
-        {/* Role Mode Switcher Tabs */}
+        {/* Role Mode Tabs */}
         <div className="flex items-center gap-1 bg-[#F6F7F5] dark:bg-[#101720] p-1.5 rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] shrink-0">
           {(["DONOR", "HOSPITAL", "BLOOD_BANK"] as const).map((r) => (
             <button
               key={r}
-              onClick={() => setRole(r)}
+              type="button"
+              onClick={() => handleFieldChange("role", r)}
               className={`px-3.5 py-2 rounded-lg font-mono text-xs font-extrabold transition-all ${
-                role === r
+                profile.role === r
                   ? "bg-[#14213D] dark:bg-white text-white dark:text-[#14213D] shadow-sm"
                   : "text-[#5B6472] dark:text-[#9AA5B4] hover:text-[#14213D] dark:hover:text-white"
               }`}
@@ -211,107 +325,114 @@ export default function ProfilePage() {
       </div>
 
       {saveMessage && (
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-2xl font-mono text-xs font-bold animate-fadeIn flex items-center justify-between">
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-2xl font-mono text-xs font-bold animate-fadeIn flex items-center justify-between shadow-sm">
           <span>{saveMessage}</span>
-          <span className="text-[10px] uppercase bg-emerald-500/20 px-2 py-0.5 rounded">Active</span>
+          <span className="text-[10px] uppercase bg-emerald-500/20 px-2 py-0.5 rounded font-mono">Saved</span>
         </div>
       )}
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Main Profile Form Grid */}
+      <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-        {/* LEFT COLUMN: Identity & Quick Badges */}
+        {/* LEFT COLUMN: User Contact & Identity Details */}
         <div className="space-y-6">
           
-          {/* Identity Card */}
-          <div className="bg-white dark:bg-[#182233] p-6 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#D62828] via-[#14213D] to-[#0F766E]" />
-            
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-[#14213D] to-[#253966] text-white flex items-center justify-center text-2xl font-black font-mono shadow-md border-2 border-white dark:border-[#2A3547] my-3">
-              {fullName.split(" ").map(n => n[0]).join("").slice(0, 2) || "BL"}
-            </div>
-
-            <h2 className="text-xl font-extrabold text-[#14213D] dark:text-white">
-              {fullName}
+          {/* Identity & Basic Info Card */}
+          <div className="bg-white dark:bg-[#182233] p-6 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm space-y-4">
+            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-secondary-var flex items-center gap-2">
+              <span>👤</span> Personal Contact Details
             </h2>
-            <p className="text-xs font-mono text-secondary-var mt-0.5">{email}</p>
-            
-            <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#14213D]/10 dark:bg-white/10 text-[#14213D] dark:text-white">
-              <span>{role === "DONOR" ? "❤️ Verified Lifesaver" : role === "HOSPITAL" ? "🏥 Certified Medical Center" : "🩸 Licensed Blood Storage"}</span>
+
+            {/* Full Name */}
+            <div className="space-y-1">
+              <label className="text-xs font-mono font-bold text-[#14213D] dark:text-white uppercase block">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={profile.fullName}
+                onChange={(e) => handleFieldChange("fullName", e.target.value)}
+                placeholder="Enter your full name"
+                className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D62828]"
+              />
             </div>
 
-            <div className="mt-6 pt-6 border-t border-[#E2E4E1] dark:border-[#2A3547] grid grid-cols-2 gap-4 text-left">
-              <div>
-                <span className="text-[10px] font-mono text-secondary-var uppercase block">Phone</span>
-                <span className="text-xs font-bold text-[#14213D] dark:text-white font-mono">{phone}</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-mono text-secondary-var uppercase block">Trust Score</span>
-                <span className="text-xs font-bold text-[#0F766E] dark:text-[#6FD6BC] font-mono">⭐ 99.2% Verified</span>
-              </div>
+            {/* Phone Number Input (With Live Confirmation) */}
+            <div className="space-y-1">
+              <label className="text-xs font-mono font-bold text-[#14213D] dark:text-white uppercase block">
+                Phone Number *
+              </label>
+              <input
+                type="tel"
+                required
+                value={profile.phone}
+                onChange={(e) => handleFieldChange("phone", e.target.value)}
+                placeholder="e.g. +91 9876543210"
+                className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D62828]"
+              />
+              {profile.phone && (
+                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 block mt-1">
+                  📞 Active Contact: <strong>{profile.phone}</strong>
+                </span>
+              )}
             </div>
+
+            {/* Email Address */}
+            <div className="space-y-1">
+              <label className="text-xs font-mono font-bold text-[#14213D] dark:text-white uppercase block">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={profile.email}
+                onChange={(e) => handleFieldChange("email", e.target.value)}
+                placeholder="name@example.com"
+                className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D62828]"
+              />
+            </div>
+
+            {/* City / Location */}
+            <div className="space-y-1">
+              <label className="text-xs font-mono font-bold text-[#14213D] dark:text-white uppercase block">
+                City / District
+              </label>
+              <input
+                type="text"
+                value={profile.city}
+                onChange={(e) => handleFieldChange("city", e.target.value)}
+                placeholder="e.g. Mumbai, Maharashtra"
+                className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D62828]"
+              />
+            </div>
+
           </div>
 
-          {/* Role Badges & Achievements */}
-          {role === "DONOR" && (
-            <div className="bg-white dark:bg-[#182233] p-6 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm space-y-4">
-              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-secondary-var flex items-center gap-2">
-                <span>🎖️</span> Lifesaver Badges & Milestones
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center space-y-1">
-                  <span className="text-2xl">🥇</span>
-                  <p className="text-xs font-bold text-amber-700 dark:text-amber-300 font-mono">Hero Tier 2</p>
-                  <p className="text-[10px] text-secondary-var">{donor.totalDonations} Lives Touched</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-[#D62828]/10 border border-[#D62828]/20 text-center space-y-1">
-                  <span className="text-2xl">🩸</span>
-                  <p className="text-xs font-bold text-[#D62828] font-mono">{donor.bloodGroup} Guardian</p>
-                  <p className="text-[10px] text-secondary-var">Universal Compatible</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-1">
-                  <span className="text-2xl">⚡</span>
-                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 font-mono">Fast Responder</p>
-                  <p className="text-[10px] text-secondary-var">&lt; 8 min Accept</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center space-y-1">
-                  <span className="text-2xl">🛡️</span>
-                  <p className="text-xs font-bold text-blue-700 dark:text-blue-300 font-mono">Privacy Shield</p>
-                  <p className="text-[10px] text-secondary-var">Encrypted Contact</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Actions */}
+          {/* Quick Navigation Card */}
           <div className="bg-[#14213D] text-white p-6 rounded-2xl shadow-lg space-y-4">
-            <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-white/80">
-              ⚡ Direct Navigation
-            </h3>
+            <h2 className="text-xs font-bold font-mono uppercase tracking-wider text-white/80">
+              ⚡ Quick Services
+            </h2>
             <div className="space-y-2">
+              <Link
+                href="/search"
+                className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-mono text-xs font-bold flex items-center justify-between transition-colors"
+              >
+                <span>🔍 Search Blood Availability</span>
+                <span>→</span>
+              </Link>
               <Link
                 href="/requests"
                 className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-mono text-xs font-bold flex items-center justify-between transition-colors"
               >
-                <span>🚨 Live Emergency Feed</span>
+                <span>🚨 Emergency Dispatches</span>
                 <span>→</span>
               </Link>
               <Link
                 href="/map"
                 className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-mono text-xs font-bold flex items-center justify-between transition-colors"
               >
-                <span>🗺️ PostGIS Facility Map</span>
-                <span>→</span>
-              </Link>
-              <Link
-                href="/analytics"
-                className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-mono text-xs font-bold flex items-center justify-between transition-colors"
-              >
-                <span>📊 Shortage Analytics</span>
+                <span>🗺️ Facility Map</span>
                 <span>→</span>
               </Link>
             </div>
@@ -319,23 +440,23 @@ export default function ProfilePage() {
 
         </div>
 
-        {/* RIGHT 2 COLUMNS: Role-Specific Premium Dashboard */}
+        {/* RIGHT 2 COLUMNS: Role-Specific User Inputs */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* DONOR SPECIFIC VIEW */}
-          {role === "DONOR" && (
+          {/* ================= DONOR VIEW ================= */}
+          {profile.role === "DONOR" && (
             <>
-              {/* 90-DAY COOLDOWN & DONATION ELIGIBILITY METER */}
+              {/* 90-DAY DONATION COOLDOWN & ELIGIBILITY CALCULATOR */}
               <div className="bg-white dark:bg-[#182233] p-6 md:p-8 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm space-y-6">
                 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <span className="text-[10px] font-mono font-extrabold uppercase text-[#D62828] bg-[#D62828]/10 px-2.5 py-1 rounded-full">
-                      Medical Recovery Protocol
+                      Live Donation Cooldown
                     </span>
-                    <h3 className="text-xl font-extrabold text-[#14213D] dark:text-white mt-1">
-                      90-Day Donation Cooldown & Eligibility
-                    </h3>
+                    <h2 className="text-xl font-extrabold text-[#14213D] dark:text-white mt-1">
+                      90-Day Medical Eligibility Tracker
+                    </h2>
                   </div>
 
                   <div className={`px-4 py-2 rounded-xl font-mono text-xs font-extrabold text-center shrink-0 flex items-center gap-2 ${
@@ -344,14 +465,18 @@ export default function ProfilePage() {
                       : "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30"
                   }`}>
                     <span className={`w-2.5 h-2.5 rounded-full ${cooldown.eligible ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-                    {cooldown.eligible ? "ELIGIBLE TO DONATE TODAY" : `IN COOLDOWN: ${cooldown.daysRemaining} DAYS REMAINING`}
+                    {cooldown.eligible ? "ELIGIBLE TO DONATE TODAY" : `IN COOLDOWN: ${cooldown.daysRemaining} DAYS LEFT`}
                   </div>
                 </div>
 
-                {/* Progress bar */}
+                {/* Progress Bar & Summary */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-mono text-secondary-var">
-                    <span>Last Donated: <strong>{donor.lastDonationDate || "Never"}</strong> ({cooldown.daysSince} days ago)</span>
+                    <span>
+                      {cooldown.hasDonatedBefore
+                        ? `Last Donated: ${profile.lastDonationDate} (${cooldown.daysSince} days ago)`
+                        : "No previous donation date recorded"}
+                    </span>
                     <span>Next Window: <strong>{cooldown.nextEligibleDate}</strong></span>
                   </div>
                   
@@ -363,99 +488,113 @@ export default function ProfilePage() {
                       style={{ width: `${cooldown.progress}%` }}
                     />
                   </div>
-                  
-                  <p className="text-[11px] text-secondary-var">
-                    {cooldown.eligible
-                      ? "✨ Your body has fully regenerated red blood cell and iron reserves. You are cleared for emergency dispatches."
-                      : `⏳ Whole blood donation standard requires 90 days for complete hemoglobin & iron replenishment. Next eligible on ${cooldown.nextEligibleDate}.`}
-                  </p>
                 </div>
 
-                {/* Quick Interactive Date Update */}
-                <div className="p-4 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-xs">
-                    <span className="font-bold text-[#14213D] dark:text-white block font-mono">Update Last Donation Record:</span>
-                    <span className="text-secondary-var text-[11px]">Did you recently donate at a local blood drive or camp?</span>
+                {/* Date Input for Last Donation */}
+                <div className="p-4 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] space-y-2">
+                  <label className="text-xs font-mono font-bold text-[#14213D] dark:text-white uppercase block">
+                    When did you last donate blood?
+                  </label>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input
+                      type="date"
+                      value={profile.lastDonationDate}
+                      onChange={(e) => handleFieldChange("lastDonationDate", e.target.value)}
+                      className="p-2.5 bg-white dark:bg-[#182233] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D62828]"
+                    />
+                    {profile.lastDonationDate && (
+                      <button
+                        type="button"
+                        onClick={() => handleFieldChange("lastDonationDate", "")}
+                        className="text-xs font-mono text-red-600 hover:underline"
+                      >
+                        Clear date (I haven't donated recently)
+                      </button>
+                    )}
                   </div>
-                  <input
-                    type="date"
-                    value={donor.lastDonationDate}
-                    onChange={(e) => setDonor({ ...donor, lastDonationDate: e.target.value })}
-                    className="p-2 bg-white dark:bg-[#182233] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D62828]"
-                  />
+                  <p className="text-[11px] text-secondary-var">
+                    * Standard guidelines require 90 days between whole blood donations to ensure safe hemoglobin & iron replenishment.
+                  </p>
                 </div>
 
               </div>
 
-              {/* HEALTH PRE-CHECK & COMPATIBILITY METRICS */}
+              {/* MEDICAL & DONOR PARAMETERS */}
               <div className="bg-white dark:bg-[#182233] p-6 md:p-8 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm space-y-6">
-                <h3 className="text-lg font-extrabold text-[#14213D] dark:text-white flex items-center gap-2">
-                  <span>🩺</span> Donor Health Metrics & Emergency Settings
-                </h3>
+                <h2 className="text-lg font-extrabold text-[#14213D] dark:text-white flex items-center gap-2">
+                  <span>🩸</span> Medical Info & Emergency Availability
+                </h2>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Blood Group */}
-                  <div className="p-4 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] space-y-1">
-                    <label className="text-[10px] font-mono uppercase font-bold text-secondary-var block">Blood Group</label>
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white block">
+                      Blood Group *
+                    </label>
                     <select
-                      value={donor.bloodGroup}
-                      onChange={(e) => setDonor({ ...donor, bloodGroup: e.target.value })}
-                      className="w-full bg-white dark:bg-[#182233] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-2 rounded-lg text-sm font-mono font-black"
+                      value={profile.bloodGroup}
+                      onChange={(e) => handleFieldChange("bloodGroup", e.target.value)}
+                      className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-sm font-mono font-black focus:outline-none focus:ring-2 focus:ring-[#D62828]"
                     >
-                      {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bg => (
+                      {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => (
                         <option key={bg} value={bg}>{bg}</option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Body Weight */}
-                  <div className="p-4 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] space-y-1">
-                    <label className="text-[10px] font-mono uppercase font-bold text-secondary-var block">Weight (kg) (&gt;50kg required)</label>
+                  {/* Weight */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white block">
+                      Weight (kg)
+                    </label>
                     <input
                       type="number"
-                      value={donor.weightKg}
-                      onChange={(e) => setDonor({ ...donor, weightKg: Number(e.target.value) })}
-                      className="w-full bg-white dark:bg-[#182233] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-2 rounded-lg text-sm font-mono font-black"
+                      value={profile.weightKg}
+                      onChange={(e) => handleFieldChange("weightKg", e.target.value)}
+                      placeholder="e.g. 65"
+                      className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D62828]"
                     />
                   </div>
 
-                  {/* Hemoglobin */}
-                  <div className="p-4 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] space-y-1">
-                    <label className="text-[10px] font-mono uppercase font-bold text-secondary-var block">Hemoglobin (g/dL) (&gt;12.5)</label>
+                  {/* Total Previous Donations */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white block">
+                      Lifetime Donations
+                    </label>
                     <input
                       type="number"
-                      step="0.1"
-                      value={donor.hemoglobin}
-                      onChange={(e) => setDonor({ ...donor, hemoglobin: Number(e.target.value) })}
-                      className="w-full bg-white dark:bg-[#182233] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-2 rounded-lg text-sm font-mono font-black"
+                      value={profile.totalDonations}
+                      onChange={(e) => handleFieldChange("totalDonations", e.target.value)}
+                      placeholder="e.g. 3"
+                      className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D62828]"
                     />
                   </div>
                 </div>
 
-                {/* Emergency Dispatch Live Toggle */}
+                {/* Emergency Availability Toggle */}
                 <div className="p-4 bg-[#D62828]/5 border border-[#D62828]/20 rounded-xl flex items-center justify-between gap-4">
-                  <div className="space-y-0.5">
+                  <div>
                     <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${donor.available ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${profile.available ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
                       <span className="font-mono text-xs font-extrabold text-[#14213D] dark:text-white">
-                        Emergency Radii Matching Mode
+                        Emergency Donor Dispatch Alerts
                       </span>
                     </div>
-                    <p className="text-[11px] text-secondary-var">
-                      Allow BloodLink PostGIS engine to ping you via SMS/Email for Critical & Urgent dispatches within 15 km.
+                    <p className="text-[11px] text-secondary-var mt-0.5">
+                      Receive instant SMS / Email notifications when a patient nearby needs your blood type.
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => setDonor({ ...donor, available: !donor.available })}
-                    className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all shrink-0 ${
-                      donor.available
+                    onClick={() => handleFieldChange("available", !profile.available)}
+                    className={`px-4 py-2 rounded-xl font-mono text-xs font-extrabold transition-all shrink-0 ${
+                      profile.available
                         ? "bg-[#0F766E] text-white shadow-sm"
                         : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                     }`}
                   >
-                    {donor.available ? "ACTIVE / READY" : "PAUSED"}
+                    {profile.available ? "ACTIVE / READY" : "PAUSED"}
                   </button>
                 </div>
 
@@ -463,175 +602,173 @@ export default function ProfilePage() {
             </>
           )}
 
-          {/* HOSPITAL SPECIFIC VIEW */}
-          {role === "HOSPITAL" && (
+          {/* ================= HOSPITAL VIEW ================= */}
+          {profile.role === "HOSPITAL" && (
             <div className="bg-white dark:bg-[#182233] p-6 md:p-8 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-mono font-extrabold uppercase text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-full">
-                    NABH Accredited Entity
-                  </span>
-                  <h3 className="text-xl font-extrabold text-[#14213D] dark:text-white mt-1">
-                    Hospital Infrastructure & Emergency Capacity
-                  </h3>
-                </div>
-                <span className="text-2xl">🏥</span>
-              </div>
+              <h2 className="text-xl font-extrabold text-[#14213D] dark:text-white flex items-center gap-2">
+                <span>🏥</span> Hospital Profile & Emergency Infrastructure
+              </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">Hospital Registered Name</label>
+                  <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                    Hospital Name *
+                  </label>
                   <input
                     type="text"
-                    value={hospital.hospitalName}
-                    onChange={(e) => setHospital({ ...hospital, hospitalName: e.target.value })}
+                    value={profile.hospitalName}
+                    onChange={(e) => handleFieldChange("hospitalName", e.target.value)}
+                    placeholder="e.g. City General Hospital"
                     className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">NABH / Medical License ID</label>
+                  <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                    NABH / Medical License Number
+                  </label>
                   <input
                     type="text"
-                    value={hospital.licenseNumber}
-                    onChange={(e) => setHospital({ ...hospital, licenseNumber: e.target.value })}
+                    value={profile.licenseNumber}
+                    onChange={(e) => handleFieldChange("licenseNumber", e.target.value)}
+                    placeholder="e.g. NABH-2026-9912"
                     className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">Trauma Center Classification</label>
+                  <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                    Emergency Blood Helpline Phone
+                  </label>
                   <input
-                    type="text"
-                    value={hospital.traumaLevel}
-                    onChange={(e) => setHospital({ ...hospital, traumaLevel: e.target.value })}
+                    type="tel"
+                    value={profile.emergencyPhone}
+                    onChange={(e) => handleFieldChange("emergencyPhone", e.target.value)}
+                    placeholder="e.g. +91 22 24567890"
                     className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">24/7 Emergency Blood Helpline</label>
+                  <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                    Trauma Care Level
+                  </label>
                   <input
                     type="text"
-                    value={hospital.emergencyPhone}
-                    onChange={(e) => setHospital({ ...hospital, emergencyPhone: e.target.value })}
+                    value={profile.traumaLevel}
+                    onChange={(e) => handleFieldChange("traumaLevel", e.target.value)}
+                    placeholder="e.g. Level 1 Trauma Center"
                     className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">Verified Street & Ward Address</label>
+                <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                  Hospital Street Address & Ward
+                </label>
                 <input
                   type="text"
-                  value={hospital.address}
-                  onChange={(e) => setHospital({ ...hospital, address: e.target.value })}
+                  value={profile.hospitalAddress}
+                  onChange={(e) => handleFieldChange("hospitalAddress", e.target.value)}
+                  placeholder="e.g. Central Avenue, Near Railway Station"
                   className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
                 />
               </div>
-
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl flex items-center justify-between text-xs font-mono">
-                <span>Active ICU Emergency Blood Quota: <strong>Unlimited Priority</strong></span>
-                <Link href="/dashboard/hospital" className="px-3 py-1 bg-blue-600 text-white rounded-lg font-bold">
-                  Open Hospital Dashboard →
-                </Link>
-              </div>
             </div>
           )}
 
-          {/* BLOOD BANK SPECIFIC VIEW */}
-          {role === "BLOOD_BANK" && (
+          {/* ================= BLOOD BANK VIEW ================= */}
+          {profile.role === "BLOOD_BANK" && (
             <div className="bg-white dark:bg-[#182233] p-6 md:p-8 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-mono font-extrabold uppercase text-purple-600 bg-purple-50 dark:bg-purple-900/30 px-2.5 py-1 rounded-full">
-                    FDA Drug Controller Certified
-                  </span>
-                  <h3 className="text-xl font-extrabold text-[#14213D] dark:text-white mt-1">
-                    Storage Capacity & Component Infrastructure
-                  </h3>
-                </div>
-                <span className="text-2xl">🩸</span>
-              </div>
+              <h2 className="text-xl font-extrabold text-[#14213D] dark:text-white flex items-center gap-2">
+                <span>🩸</span> Blood Bank Details & License Info
+              </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">Blood Bank Name</label>
+                  <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                    Blood Bank Registered Name *
+                  </label>
                   <input
                     type="text"
-                    value={bloodBank.bloodBankName}
-                    onChange={(e) => setBloodBank({ ...bloodBank, bloodBankName: e.target.value })}
+                    value={profile.bloodBankName}
+                    onChange={(e) => handleFieldChange("bloodBankName", e.target.value)}
+                    placeholder="e.g. Red Cross Blood Storage Center"
                     className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">Drug Controller License No.</label>
+                  <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                    FDA Drug Controller License No.
+                  </label>
                   <input
                     type="text"
-                    value={bloodBank.drugLicense}
-                    onChange={(e) => setBloodBank({ ...bloodBank, drugLicense: e.target.value })}
+                    value={profile.drugLicense}
+                    onChange={(e) => handleFieldChange("drugLicense", e.target.value)}
+                    placeholder="e.g. FDA-DL-99420-B"
                     className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">Total Storage Units Capacity</label>
+                  <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                    Emergency Helpline Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={profile.bankPhone}
+                    onChange={(e) => handleFieldChange("bankPhone", e.target.value)}
+                    placeholder="e.g. +91 22 28901234"
+                    className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                    Storage Capacity (Units)
+                  </label>
                   <input
                     type="number"
-                    value={bloodBank.storageCapacityUnits}
-                    onChange={(e) => setBloodBank({ ...bloodBank, storageCapacityUnits: Number(e.target.value) })}
-                    className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase font-bold text-secondary-var">Operating Hours</label>
-                  <input
-                    type="text"
-                    value={bloodBank.operatingHours}
-                    onChange={(e) => setBloodBank({ ...bloodBank, operatingHours: e.target.value })}
+                    value={profile.storageCapacityUnits}
+                    onChange={(e) => handleFieldChange("storageCapacityUnits", e.target.value)}
+                    placeholder="e.g. 1000"
                     className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] flex items-center justify-between text-xs font-mono">
-                  <span>Platelet Agitator</span>
-                  <span className="text-emerald-500 font-bold">✅ AVAILABLE</span>
-                </div>
-                <div className="p-3 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] flex items-center justify-between text-xs font-mono">
-                  <span>Deep Plasma Freezer (-40°C)</span>
-                  <span className="text-emerald-500 font-bold">✅ ACTIVE</span>
-                </div>
-              </div>
-
-              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl flex items-center justify-between text-xs font-mono">
-                <span>Real-Time Inventory Integration: <strong>Connected</strong></span>
-                <Link href="/dashboard/blood-bank" className="px-3 py-1 bg-purple-600 text-white rounded-lg font-bold">
-                  Open Blood Bank Dashboard →
-                </Link>
+              <div className="space-y-1">
+                <label className="text-xs font-mono uppercase font-bold text-[#14213D] dark:text-white">
+                  Blood Bank Address
+                </label>
+                <input
+                  type="text"
+                  value={profile.bankAddress}
+                  onChange={(e) => handleFieldChange("bankAddress", e.target.value)}
+                  placeholder="e.g. Complex Gate 2, City Center"
+                  className="w-full bg-[#F6F7F5] dark:bg-[#101720] border border-[#E2E4E1] dark:border-[#2A3547] text-[#14213D] dark:text-white p-3 rounded-xl text-xs font-mono font-bold"
+                />
               </div>
             </div>
           )}
 
-          {/* SAVE BUTTON */}
-          <div className="flex justify-end gap-3">
+          {/* SUBMIT BUTTON */}
+          <div className="flex justify-end gap-3 pt-2">
             <button
-              type="button"
-              onClick={handleSave}
+              type="submit"
               disabled={saving}
-              className="px-6 py-3 bg-[#14213D] hover:bg-black text-white font-mono font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2"
+              className="px-8 py-3.5 bg-[#D62828] hover:bg-[#b01f1f] text-white font-mono font-extrabold text-xs rounded-xl shadow-lg shadow-[#D62828]/20 transition-all flex items-center gap-2"
             >
               <span>💾</span>
-              <span>{saving ? "Saving Changes..." : "Save Profile & Verification Status"}</span>
+              <span>{saving ? "Saving Changes..." : "Save Profile Details"}</span>
             </button>
           </div>
 
         </div>
 
-      </div>
+      </form>
 
     </div>
   );
