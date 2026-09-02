@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg-page: #F6F7F5;
+  --bg-card: #FFFFFF;
+  --border-color: #E2E4E1;
+  --text-primary: #14213D;
+  --text-secondary: #5B6472;
+
+  --badge-critical-bg: #FCEBEB;
+  --badge-critical-text: #791F1F;
+
+  --badge-medium-bg: #FAEEDA;
+  --badge-medium-text: #633806;
+
+  --badge-teal-bg: #DFF3EE;
+  --badge-teal-text: #085041;
+}
+
+html.dark, .dark {
+  --bg-page: #101720;
+  --bg-card: #182233;
+  --border-color: #2A3547;
+  --text-primary: #F6F7F5;
+  --text-secondary: #9AA5B4;
+
+  --badge-critical-bg: #4A1313;
+  --badge-critical-text: #F5A3A3;
+
+  --badge-medium-bg: #422703;
+  --badge-medium-text: #F5C77A;
+
+  --badge-teal-bg: #06332A;
+  --badge-teal-text: #6FD6BC;
+}
+
+@theme inline {
+  --font-sans: var(--font-body), Inter, sans-serif;
+  --font-mono: var(--font-mono), "IBM Plex Mono", monospace;
+  --font-heading: var(--font-heading), "Space Grotesk", sans-serif;
+}
+
+html, body {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-body), Inter, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), "Space Grotesk", sans-serif;
+}
+
+.font-mono-data {
+  font-family: var(--font-mono), "IBM Plex Mono", monospace;
+  letter-spacing: -0.02em;
+}
+
+/* Card Surface Utilities */
+.card-surface {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.text-primary-var {
+  color: var(--text-primary);
+}
+
+.text-secondary-var {
+  color: var(--text-secondary);
+}
+
+/* Badge Utility Classes */
+.badge-critical {
+  background-color: var(--badge-critical-bg);
+  color: var(--badge-critical-text);
+}
+
+.badge-medium {
+  background-color: var(--badge-medium-bg);
+  color: var(--badge-medium-text);
+}
+
+.badge-teal {
+  background-color: var(--badge-teal-bg);
+  color: var(--badge-teal-text);
+}
