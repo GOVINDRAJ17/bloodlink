@@ -55,7 +55,8 @@ export default function Header() {
     { name: "Hospital", href: "/dashboard/hospital" },
     { name: "Emergencies", href: "/requests" },
     { name: "Map", href: "/map" },
-    { name: "Analytics", href: "/analytics" }
+    { name: "Analytics", href: "/analytics" },
+    { name: "Profile", href: "/profile" }
   ];
 
   return (
@@ -116,22 +117,28 @@ export default function Header() {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#D62828] rounded-full ring-2 ring-[#14213D]" />
           </Link>
 
-          {/* Auth State & Avatar */}
+          {/* Auth State & Avatar Link to Profile */}
           {loading ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-white/10 shrink-0" />
           ) : user ? (
             <div className="flex items-center gap-2 shrink-0">
-              {user.user_metadata?.avatar_url ? (
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt={user.email ?? "User"}
-                  className="h-8 w-8 rounded-full border border-white/20 object-cover"
-                />
-              ) : (
-                <div className="h-8 w-8 rounded-full bg-[#0F766E] text-white text-xs font-bold flex items-center justify-center border border-white/20">
-                  {initials}
-                </div>
-              )}
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                title="Go to My Profile & Cooldown Status"
+              >
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt={user.email ?? "User"}
+                    className="h-8 w-8 rounded-full border border-white/20 object-cover"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-[#0F766E] text-white text-xs font-bold flex items-center justify-center border border-white/20">
+                    {initials}
+                  </div>
+                )}
+              </Link>
               <button
                 onClick={handleSignOut}
                 className="text-xs px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-gray-200 transition-colors hidden sm:block font-medium"
