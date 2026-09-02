@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -11,10 +14,33 @@ export default function LoginPage() {
 
   const supabase = createClient();
 
+  useEffect(() => {
+    const errParam = searchParams.get("error");
+    const errDesc = searchParams.get("error_description");
+    if (errParam) {
+      if (errParam === "oauth_exchange_failed") {
+        setError("Google authentication exchange failed. Please verify your Supabase Google Provider configuration and Redirect URL.");
+      } else {
+        setError(errDesc || `Authentication error: ${errParam}`);
+      }
+    }
+  }, [searchParams]);
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
       setError("");
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!supabaseUrl || supabaseUrl.includes("xyzcompany")) {
+        // Dev fallback simulation if Supabase credentials are not connected
+        setMessage("⚡ Demo Mode: Redirecting to Profile Setup as verified Google user...");
+        setTimeout(() => {
+          router.push("/profile/setup");
+        }, 800);
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -37,6 +63,15 @@ export default function LoginPage() {
       setLoading(true);
       setError("");
       setMessage("");
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!supabaseUrl || supabaseUrl.includes("xyzcompany")) {
+        setMessage("📩 Demo Mode: Link simulated. Redirecting to Profile Setup...");
+        setTimeout(() => {
+          router.push("/profile/setup");
+        }, 800);
+        return;
+      }
 
       const { error } = await supabase.auth.signInWithOtp({
         email,
@@ -151,5 +186,13 @@ export default function LoginPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center font-mono text-xs text-secondary-var">Loading Login Portal...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
