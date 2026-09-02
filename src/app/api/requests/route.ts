@@ -49,14 +49,12 @@ const DEFAULT_MOCK_REQUESTS = [
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-
     const body = await request.json();
     const validatedData = createRequestSchema.parse(body);
     const locationWkt = `POINT(${validatedData.lng} ${validatedData.lat})`;
 
-    if (authErr || !user || !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes("xyzcompany")) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl || supabaseUrl.includes("xyzcompany")) {
       // Mock emergency request response for local dev fallback
       const mockReq = {
         id: `req-${Date.now()}`,
@@ -73,8 +71,19 @@ export async function POST(request: Request) {
       return NextResponse.json({
         message: "Emergency blood request created successfully (Dev Mode)",
         request: mockReq,
-        matching: { success: true, matchedCount: 4, radiusKm: 5 }
+        matching: {
+          success: true,
+          alertedDonors: 14,
+          radiusKm: 15,
+          timestamp: new Date().toISOString()
+        }
       }, { status: 201 });
+    }
+
+    const supabase = await createClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Resolve hospital profile
