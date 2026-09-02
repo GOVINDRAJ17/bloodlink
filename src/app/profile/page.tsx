@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 interface UserProfileState {
@@ -41,10 +42,29 @@ interface UserProfileState {
 const STORAGE_KEY = "bloodlink_user_profile_v2";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+
+  const handleSignOut = async () => {
+    try {
+      setSigningOut(true);
+      await supabase.auth.signOut();
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("bloodlink_user_phone");
+        localStorage.removeItem("bloodlink_profile_completed");
+      }
+      router.push("/auth/login");
+    } catch (err) {
+      console.error("Sign out error:", err);
+      router.push("/auth/login");
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   // Clean, 100% user-input driven state
   const [profile, setProfile] = useState<UserProfileState>({
@@ -436,6 +456,25 @@ export default function ProfilePage() {
                 <span>→</span>
               </Link>
             </div>
+          </div>
+
+          {/* Account Security & Sign Out Card */}
+          <div className="bg-white dark:bg-[#182233] p-6 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm space-y-3">
+            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-secondary-var flex items-center gap-2">
+              <span>🔐</span> Session & Security
+            </h2>
+            <p className="text-xs text-[#5B6472] dark:text-[#9AA5B4]">
+              Sign out of your active session on this device.
+            </p>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className="w-full py-2.5 px-4 bg-[#E11D48]/10 hover:bg-[#E11D48] text-[#E11D48] hover:text-white border border-[#E11D48]/20 font-mono text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95"
+            >
+              <span>🚪</span>
+              <span>{signingOut ? "Signing Out..." : "Sign Out of Account"}</span>
+            </button>
           </div>
 
         </div>

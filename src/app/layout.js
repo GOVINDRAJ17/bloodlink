@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "./components/Header";
 import SessionWrapper from "./components/SessionWrapper";
 import { ThemeProvider } from "./components/ThemeProvider";
+import PageTransition from "./components/PageTransition";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-heading",
@@ -38,7 +39,9 @@ export default function RootLayout({ children }) {
         <SessionWrapper>
           <ThemeProvider>
             <Header />
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 flex flex-col">
+              <PageTransition>{children}</PageTransition>
+            </main>
           </ThemeProvider>
         </SessionWrapper>
       </body>

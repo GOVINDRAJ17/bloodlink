@@ -3,43 +3,64 @@
 @variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg-page: #F6F7F5;
+  --bg-page: #F8F9FA;
   --bg-card: #FFFFFF;
-  --border-color: #E2E4E1;
-  --text-primary: #14213D;
-  --text-secondary: #5B6472;
+  --bg-card-subtle: #F3F4F6;
+  --border-color: #E5E7EB;
+  --border-hover: #D1D5DB;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
 
-  --badge-critical-bg: #FCEBEB;
-  --badge-critical-text: #791F1F;
+  --accent-red: #E11D48;
+  --accent-red-hover: #BE123C;
+  --accent-navy: #0F172A;
+  --accent-teal: #0D9488;
 
-  --badge-medium-bg: #FAEEDA;
-  --badge-medium-text: #633806;
+  --badge-critical-bg: rgba(225, 29, 72, 0.1);
+  --badge-critical-text: #E11D48;
 
-  --badge-teal-bg: #DFF3EE;
-  --badge-teal-text: #085041;
+  --badge-medium-bg: rgba(245, 158, 11, 0.12);
+  --badge-medium-text: #B45309;
+
+  --badge-teal-bg: rgba(13, 148, 136, 0.12);
+  --badge-teal-text: #0D9488;
 }
 
 html.dark, .dark {
-  --bg-page: #101720;
-  --bg-card: #182233;
-  --border-color: #2A3547;
-  --text-primary: #F6F7F5;
-  --text-secondary: #9AA5B4;
+  --bg-page: #0B0F19;
+  --bg-card: #111827;
+  --bg-card-subtle: #1F2937;
+  --border-color: #1F2937;
+  --border-hover: #374151;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
 
-  --badge-critical-bg: #4A1313;
-  --badge-critical-text: #F5A3A3;
+  --accent-red: #F43F5E;
+  --accent-red-hover: #E11D48;
+  --accent-navy: #F8FAFC;
+  --accent-teal: #2DD4BF;
 
-  --badge-medium-bg: #422703;
-  --badge-medium-text: #F5C77A;
+  --badge-critical-bg: rgba(244, 63, 94, 0.15);
+  --badge-critical-text: #FDA4AF;
 
-  --badge-teal-bg: #06332A;
-  --badge-teal-text: #6FD6BC;
+  --badge-medium-bg: rgba(245, 158, 11, 0.18);
+  --badge-medium-text: #FDE68A;
+
+  --badge-teal-bg: rgba(45, 212, 191, 0.15);
+  --badge-teal-text: #99F6E4;
 }
 
 @theme inline {
-  --font-sans: var(--font-body), Inter, sans-serif;
+  --font-sans: var(--font-body), Inter, system-ui, sans-serif;
   --font-mono: var(--font-mono), "IBM Plex Mono", monospace;
   --font-heading: var(--font-heading), "Space Grotesk", sans-serif;
+}
+
+/* Base resets & smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
 html, body {
@@ -51,11 +72,14 @@ body {
   background-color: var(--bg-page);
   color: var(--text-primary);
   font-family: var(--font-body), Inter, sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading), "Space Grotesk", sans-serif;
+  letter-spacing: -0.025em;
 }
 
 .font-mono-data {
@@ -63,13 +87,143 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.02em;
 }
 
-/* Card Surface Utilities */
-.card-surface {
-  background-color: var(--bg-card);
-  border-color: var(--border-color);
-  color: var(--text-primary);
+/* =========================================================================
+   PREMIUM GLASSMORPHISM & SURFACE ELEVATIONS
+   ========================================================================= */
+
+.glass-navbar {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+html.dark .glass-navbar, .dark .glass-navbar {
+  background: rgba(11, 15, 25, 0.88);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+html.dark .glass-card:hover, .dark .glass-card:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+.card-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+}
+
+/* =========================================================================
+   INTERACTIVE BUTTON MICRO-INTERACTIONS
+   ========================================================================= */
+
+.btn-interactive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono), monospace;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.btn-interactive:active {
+  transform: scale(0.98) translateY(0);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px 0 rgba(225, 29, 72, 0.25);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%);
+  box-shadow: 0 6px 20px 0 rgba(225, 29, 72, 0.35);
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-card-subtle);
+  border-color: var(--border-hover);
+}
+
+.btn-accent {
+  background: #0F172A;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px 0 rgba(15, 23, 42, 0.2);
+}
+
+html.dark .btn-accent, .dark .btn-accent {
+  background: #F8FAFC;
+  color: #0F172A;
+  box-shadow: 0 4px 14px 0 rgba(248, 250, 252, 0.15);
+}
+
+.btn-accent:hover {
+  background: #1E293B;
+}
+
+html.dark .btn-accent:hover, .dark .btn-accent:hover {
+  background: #E2E8F0;
+}
+
+/* =========================================================================
+   SHIMMER SKELETON LOADING
+   ========================================================================= */
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(200, 200, 200, 0.15) 25%, rgba(200, 200, 200, 0.3) 50%, rgba(200, 200, 200, 0.15) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+html.dark .skeleton-shimmer, .dark .skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Form input focus glow */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.2);
+}
+
+/* Text utility overrides */
 .text-primary-var {
   color: var(--text-primary);
 }
@@ -78,7 +232,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-secondary);
 }
 
-/* Badge Utility Classes */
+/* Badge utility overrides */
 .badge-critical {
   background-color: var(--badge-critical-bg);
   color: var(--badge-critical-text);
