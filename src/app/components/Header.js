@@ -2,41 +2,16 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "./ThemeProvider";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Header() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const supabase = createClient();
-
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    async function getUser() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-      } catch (err) {
-        console.error("Header auth state error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -52,6 +27,7 @@ export default function Header() {
 
   const navLinks = [
     { name: "Search", href: "/search" },
+    { name: "Chronic Care", href: "/chronic-care" },
     { name: "Donor", href: "/dashboard/donor" },
     { name: "Hospital", href: "/dashboard/hospital" },
     { name: "Emergencies", href: "/requests" },
@@ -86,6 +62,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={false}
                 className="relative px-3.5 py-1.5 rounded-full transition-colors"
               >
                 {isActive && (
@@ -139,9 +116,11 @@ export default function Header() {
             >
               <div className="relative">
                 {user.user_metadata?.avatar_url ? (
-                  <img
+                  <Image
                     src={user.user_metadata.avatar_url}
                     alt={user.email ?? "User"}
+                    width={36}
+                    height={36}
                     className="h-9 w-9 rounded-full border-2 border-white/20 group-hover:border-[#E11D48] object-cover transition-colors"
                   />
                 ) : (

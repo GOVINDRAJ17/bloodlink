@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getPreciseLiveLocation } from "@/lib/geo/location";
+import { useAuth } from "@/context/AuthContext";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 export default function ProfileSetupPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { user, loading: authLoading } = useAuth();
 
   const [userId, setUserId] = useState<string>("");
   const [fetchingProfile, setFetchingProfile] = useState(true);
@@ -24,22 +26,30 @@ export default function ProfileSetupPage() {
   // Donor fields
   const [bloodGroup, setBloodGroup] = useState("O+");
   const [available, setAvailable] = useState(true);
+  const [city, setCity] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [lastDonationDate, setLastDonationDate] = useState("");
 
-  // Hospital / Blood Bank common fields
+  // Hospital fields
   const [hospitalName, setHospitalName] = useState("");
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [traumaLevel, setTraumaLevel] = useState("LEVEL_1");
+  const [emergencyPhone, setEmergencyPhone] = useState("");
+
+  // Blood Bank fields
   const [bloodBankName, setBloodBankName] = useState("");
   const [address, setAddress] = useState("");
 
   // Location coordinates
-  const [location, setLocation] = useState<{ lat: number; lng: number }>({ lat: 20.5937, lng: 78.9629 });
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+
     async function loadUser() {
       try {
         setFetchingProfile(true);
-        const { data: { user } } = await supabase.auth.getUser();
-
         if (user) {
           setUserId(user.id);
           setFullName(user.user_metadata?.full_name || user.user_metadata?.name || "");
@@ -105,6 +115,22 @@ export default function ProfileSetupPage() {
 
     if (role === "BLOOD_BANK" && !bloodBankName.trim()) {
       setError("Please enter your blood bank name");
+      return;
+    }
+
+    if (role === "DONOR") {
+      if (!city.trim()) {
+        setError("Please enter your city of residence");
+        return;
+      }
+      if (!weightKg.trim() || isNaN(Number(weightKg)) || Number(weightKg) < 45) {
+        setError("Please enter a valid weight in kg (minimum 45 kg required for blood donation)");
+        return;
+      }
+    }
+
+    if (!location || typeof location.lat !== "number" || typeof location.lng !== "number") {
+      setError("Please click 'Detect Live Location' to set your authentic coordinates");
       return;
     }
 
@@ -300,6 +326,37 @@ export default function ProfileSetupPage() {
                   </span>
                 </label>
               </div>
+
+              {/* City & Weight fields */}
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <label className="text-xs font-mono font-bold uppercase text-[#5B6472] dark:text-[#9AA5B4]">
+                  City / Region *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="e.g. Pune, Mumbai, Bengaluru"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] bg-[#F6F7F5] dark:bg-[#101720] text-[#14213D] dark:text-[#F6F7F5] text-xs focus:outline-none focus:border-[#0F766E]"
+                />
+              </div>
+
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <label className="text-xs font-mono font-bold uppercase text-[#5B6472] dark:text-[#9AA5B4]">
+                  Body Weight (kg) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="45"
+                  max="200"
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                  placeholder="e.g. 68"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] bg-[#F6F7F5] dark:bg-[#101720] text-[#14213D] dark:text-[#F6F7F5] text-xs focus:outline-none focus:border-[#0F766E]"
+                />
+              </div>
             </div>
           )}
 
@@ -358,7 +415,7 @@ export default function ProfileSetupPage() {
               className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] bg-[#F6F7F5] dark:bg-[#101720] text-[#14213D] dark:text-[#F6F7F5] text-xs focus:outline-none focus:border-[#0F766E]"
             />
             <span className="text-[10px] font-mono text-[#5B6472] dark:text-[#9AA5B4] block">
-              Coordinates: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+              Coordinates: {location ? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : "Location not set (please click Detect Live Location)"}
             </span>
           </div>
 

@@ -43,6 +43,10 @@ export default function SetDetails() {
   const [onMedication, setOnMedication] = useState(false);
   const [medicationDetails, setMedicationDetails] = useState("");
   const [hasDisease, setHasDisease] = useState(false);
+  const [hasRecentSurgery, setHasRecentSurgery] = useState(false);
+  const [surgeryDetails, setSurgeryDetails] = useState("");
+  const [hasGeneticDisorder, setHasGeneticDisorder] = useState(false);
+  const [geneticDisorderDetails, setGeneticDisorderDetails] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -52,7 +56,9 @@ export default function SetDetails() {
     !recentTattoo &&
     !pregnant &&
     !underweight &&
-    !hasDisease;
+    !hasDisease &&
+    !hasRecentSurgery &&
+    !hasGeneticDisorder;
 
   useEffect(() => {
     const selectedState = states.find(s => s.stateCode === stateCode);
@@ -92,6 +98,10 @@ export default function SetDetails() {
               onMedication,
               medicationDetails: onMedication ? medicationDetails : null,
               hasDisease,
+              hasRecentSurgery,
+              surgeryDetails: hasRecentSurgery ? surgeryDetails : null,
+              hasGeneticDisorder,
+              geneticDisorderDetails: hasGeneticDisorder ? geneticDisorderDetails : null,
               isEligibleToDonate,
             }
             : null,
@@ -400,6 +410,61 @@ export default function SetDetails() {
                     className="w-4 h-4 accent-red-600"
                   />
                 </label>
+              </div>
+
+              <div className="p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
+                <label className="flex items-center justify-between cursor-pointer font-bold text-gray-800">
+                  <span>Major Surgery or Blood Transfusion within last 12 months?</span>
+                  <input
+                    type="checkbox"
+                    checked={hasRecentSurgery}
+                    onChange={(e) => setHasRecentSurgery(e.target.checked)}
+                    className="w-4 h-4 accent-red-600"
+                  />
+                </label>
+                {hasRecentSurgery && (
+                  <input
+                    type="text"
+                    placeholder="Specify procedure & approximate month/year..."
+                    value={surgeryDetails}
+                    onChange={(e) => setSurgeryDetails(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded text-xs"
+                  />
+                )}
+              </div>
+
+              <div className="p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
+                <label className="flex items-center justify-between cursor-pointer font-bold text-gray-800">
+                  <span>Genetic Blood Disorder (Sickle Cell, Thalassemia, Hemophilia)?</span>
+                  <input
+                    type="checkbox"
+                    checked={hasGeneticDisorder}
+                    onChange={(e) => setHasGeneticDisorder(e.target.checked)}
+                    className="w-4 h-4 accent-red-600"
+                  />
+                </label>
+                {hasGeneticDisorder && (
+                  <input
+                    type="text"
+                    placeholder="Specify diagnosed genetic condition / carrier status..."
+                    value={geneticDisorderDetails}
+                    onChange={(e) => setGeneticDisorderDetails(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded text-xs"
+                  />
+                )}
+              </div>
+
+              {/* Live Eligibility Status Banner */}
+              <div className={`p-3 rounded-lg border text-xs font-mono font-bold ${
+                isEligibleToDonate
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                  : "bg-amber-50 text-amber-800 border-amber-300"
+              }`}>
+                {isEligibleToDonate ? (
+                  <span>✅ Pre-Screening Passed: You are eligible to be matched for voluntary blood donations.</span>
+                ) : (
+                  <span>⚠️ Deferral Notice: Based on current medical guidelines, voluntary donation is temporarily deferred for your safety.</span>
+                )}
               </div>
             </div>
 

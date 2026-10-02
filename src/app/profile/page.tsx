@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 interface UserProfileState {
   fullName: string;
@@ -19,6 +20,11 @@ interface UserProfileState {
   weightKg: string;
   hemoglobin: string;
   city: string;
+  hasSurgery: boolean;
+  surgeryNotes: string;
+  hasGeneticDisorder: boolean;
+  geneticDisorderNotes: string;
+  isEligible: boolean;
   
   // Hospital fields
   hospitalName: string;
@@ -44,6 +50,7 @@ const STORAGE_KEY = "bloodlink_user_profile_v2";
 export default function ProfilePage() {
   const router = useRouter();
   const supabase = createClient();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -79,9 +86,14 @@ export default function ProfilePage() {
     weightKg: "",
     hemoglobin: "",
     city: "",
+    hasSurgery: false,
+    surgeryNotes: "",
+    hasGeneticDisorder: false,
+    geneticDisorderNotes: "",
+    isEligible: true,
     hospitalName: "",
     licenseNumber: "",
-    traumaLevel: "Level 1 Emergency Center",
+    traumaLevel: "LEVEL_1",
     icuBeds: "",
     emergencyPhone: "",
     hospitalAddress: "",
@@ -97,6 +109,8 @@ export default function ProfilePage() {
 
   // Load user data on mount
   useEffect(() => {
+    if (authLoading) return;
+
     async function loadData() {
       try {
         setLoading(true);
@@ -112,40 +126,41 @@ export default function ProfilePage() {
           }
         }
 
-        // 2. Check Supabase Auth user
-        const { data: { user } } = await supabase.auth.getUser();
+        // 2. Check Auth user from unified AuthContext
         if (user) {
           loadedState.email = user.email || loadedState.email || "";
           if (user.user_metadata?.full_name && !loadedState.fullName) {
             loadedState.fullName = user.user_metadata.full_name;
           }
 
-          // 3. Query Supabase database profile if available
+          // 3. Query Supabase database profile in parallel with specific columns
           try {
-            const { data: dbProfile } = await supabase
-              .from("profiles")
-              .select("*")
-              .eq("id", user.id)
-              .single();
+            const [profileRes, donorRes] = await Promise.all([
+              supabase
+                .from("profiles")
+                .select("full_name, phone, role")
+                .eq("id", user.id)
+                .maybeSingle(),
+              supabase
+                .from("donor_profiles")
+                .select("blood_group, available, last_donation_date, total_donations")
+                .eq("user_id", user.id)
+                .maybeSingle(),
+            ]);
 
+            const dbProfile = profileRes.data;
             if (dbProfile) {
               if (dbProfile.full_name) loadedState.fullName = dbProfile.full_name;
               if (dbProfile.phone) loadedState.phone = dbProfile.phone;
               if (dbProfile.role) loadedState.role = dbProfile.role as any;
             }
 
-            if (dbProfile?.role === "DONOR" || loadedState.role === "DONOR") {
-              const { data: donorDb } = await supabase
-                .from("donor_profiles")
-                .select("*")
-                .eq("user_id", user.id)
-                .single();
-              if (donorDb) {
-                if (donorDb.blood_group) loadedState.bloodGroup = donorDb.blood_group;
-                if (donorDb.available !== undefined) loadedState.available = donorDb.available;
-                if (donorDb.last_donation_date) loadedState.lastDonationDate = donorDb.last_donation_date;
-                if (donorDb.total_donations !== undefined) loadedState.totalDonations = donorDb.total_donations;
-              }
+            const donorDb = donorRes.data;
+            if (donorDb) {
+              if (donorDb.blood_group) loadedState.bloodGroup = donorDb.blood_group;
+              if (donorDb.available !== undefined) loadedState.available = donorDb.available;
+              if (donorDb.last_donation_date) loadedState.lastDonationDate = donorDb.last_donation_date;
+              if (donorDb.total_donations !== undefined) loadedState.totalDonations = donorDb.total_donations;
             }
           } catch (e) {
             // silent fallback
@@ -238,10 +253,10 @@ export default function ProfilePage() {
       }
 
       // 2. Persist to Supabase if connected
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      const currentUser = user || (await supabase.auth.getUser()).data.user;
+      if (currentUser) {
         await supabase.from("profiles").upsert({
-          id: user.id,
+          id: currentUser.id,
           full_name: profile.fullName.trim(),
           phone: profile.phone.trim(),
           role: profile.role,
@@ -251,7 +266,7 @@ export default function ProfilePage() {
 
         if (profile.role === "DONOR") {
           await supabase.from("donor_profiles").upsert({
-            user_id: user.id,
+            user_id: currentUser.id,
             blood_group: profile.bloodGroup,
             available: profile.available,
             last_donation_date: profile.lastDonationDate || null,
@@ -260,7 +275,7 @@ export default function ProfilePage() {
           }, { onConflict: "user_id" });
         } else if (profile.role === "HOSPITAL") {
           await supabase.from("hospital_profiles").upsert({
-            user_id: user.id,
+            user_id: currentUser.id,
             hospital_name: profile.hospitalName.trim(),
             phone: profile.emergencyPhone.trim() || profile.phone.trim(),
             address: profile.hospitalAddress.trim(),
@@ -268,7 +283,7 @@ export default function ProfilePage() {
           }, { onConflict: "user_id" });
         } else if (profile.role === "BLOOD_BANK") {
           await supabase.from("blood_bank_profiles").upsert({
-            user_id: user.id,
+            user_id: currentUser.id,
             blood_bank_name: profile.bloodBankName.trim(),
             phone: profile.bankPhone.trim() || profile.phone.trim(),
             address: profile.bankAddress.trim(),
@@ -637,6 +652,83 @@ export default function ProfilePage() {
                   </button>
                 </div>
 
+              </div>
+
+              {/* MEDICAL SCREENING & CLINICAL ELIGIBILITY CARD */}
+              <div className="bg-white dark:bg-[#182233] p-6 md:p-8 rounded-2xl border border-[#E2E4E1] dark:border-[#2A3547] shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-lg font-extrabold text-[#14213D] dark:text-white flex items-center gap-2">
+                      <span>🛡️</span> Medical Screening & Safety Pre-Verification
+                    </h2>
+                    <p className="text-xs text-secondary-var mt-0.5">
+                      Ensures recipient safety and validates eligibility per national transfusion protocols.
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold self-start sm:self-auto ${
+                    profile.isEligible
+                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/30"
+                      : "bg-amber-500/10 text-amber-600 border border-amber-500/30"
+                  }`}>
+                    {profile.isEligible ? "✓ Clinically Eligible" : "⚠️ Deferred / Evaluation Needed"}
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Surgery screening */}
+                  <div className="p-4 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] space-y-2">
+                    <label className="flex items-center justify-between cursor-pointer text-xs font-mono font-bold text-[#14213D] dark:text-white">
+                      <span>Major Surgery or Blood Transfusion in last 12 months?</span>
+                      <input
+                        type="checkbox"
+                        checked={profile.hasSurgery}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          handleFieldChange("hasSurgery", val);
+                          if (val) handleFieldChange("isEligible", false);
+                          else if (!profile.hasGeneticDisorder) handleFieldChange("isEligible", true);
+                        }}
+                        className="w-4 h-4 accent-[#D62828]"
+                      />
+                    </label>
+                    {profile.hasSurgery && (
+                      <input
+                        type="text"
+                        placeholder="Specify surgical procedure, date, and hospital..."
+                        value={profile.surgeryNotes}
+                        onChange={(e) => handleFieldChange("surgeryNotes", e.target.value)}
+                        className="w-full p-2.5 bg-white dark:bg-[#182233] border border-[#E2E4E1] dark:border-[#2A3547] rounded-lg text-xs font-mono"
+                      />
+                    )}
+                  </div>
+
+                  {/* Genetic blood disorder */}
+                  <div className="p-4 bg-[#F6F7F5] dark:bg-[#101720] rounded-xl border border-[#E2E4E1] dark:border-[#2A3547] space-y-2">
+                    <label className="flex items-center justify-between cursor-pointer text-xs font-mono font-bold text-[#14213D] dark:text-white">
+                      <span>Genetic Blood Condition (Sickle Cell, Thalassemia, Hemophilia)?</span>
+                      <input
+                        type="checkbox"
+                        checked={profile.hasGeneticDisorder}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          handleFieldChange("hasGeneticDisorder", val);
+                          if (val) handleFieldChange("isEligible", false);
+                          else if (!profile.hasSurgery) handleFieldChange("isEligible", true);
+                        }}
+                        className="w-4 h-4 accent-[#D62828]"
+                      />
+                    </label>
+                    {profile.hasGeneticDisorder && (
+                      <input
+                        type="text"
+                        placeholder="Specify genetic trait or diagnosis..."
+                        value={profile.geneticDisorderNotes}
+                        onChange={(e) => handleFieldChange("geneticDisorderNotes", e.target.value)}
+                        className="w-full p-2.5 bg-white dark:bg-[#182233] border border-[#E2E4E1] dark:border-[#2A3547] rounded-lg text-xs font-mono"
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </>
           )}

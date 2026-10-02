@@ -1,0 +1,158 @@
+[
+  {
+    "mode": 1,
+    "name": "API Timeout",
+    "result": {
+      "endpoint": "https://eraktkosh.mohfw.gov.in/eraktkoshPortal/eraktkosh/bloodbank/nearest",
+      "retries": 2,
+      "failure_type": "TIMEOUT_ERROR",
+      "circuit_state": "CLOSED",
+      "recovery_behaviour": "SERVE_STALE_VERIFIED_CACHE",
+      "user_visible_behaviour": "Upstream eRaktKosh API unresponsive. Displaying verified local backup inventory (Updated recently).",
+      "success": false,
+      "data": [
+        {
+          "hospitalCode": "1001",
+          "name": "KEM Hospital Blood Centre (Cached)",
+          "units": 15
+        },
+        {
+          "hospitalCode": "1002",
+          "name": "Tata Memorial Centre (Cached)",
+          "units": 8
+        }
+      ],
+      "is_fallback": true,
+      "last_error": "Simulated network latency (0.45s) exceeded timeout threshold (0.20s)"
+    }
+  },
+  {
+    "mode": 2,
+    "name": "HTTP 5xx Server Error",
+    "result": {
+      "endpoint": "https://eraktkosh.mohfw.gov.in/eraktkoshPortal/eraktkosh/bloodbank/nearest",
+      "retries": 2,
+      "failure_type": "SERVER_5XX_ERROR",
+      "circuit_state": "OPEN",
+      "recovery_behaviour": "SERVE_STALE_VERIFIED_CACHE",
+      "user_visible_behaviour": "Upstream eRaktKosh API unresponsive. Displaying verified local backup inventory (Updated recently).",
+      "success": false,
+      "data": [
+        {
+          "hospitalCode": "1001",
+          "name": "KEM Hospital Blood Centre (Cached)",
+          "units": 15
+        },
+        {
+          "hospitalCode": "1002",
+          "name": "Tata Memorial Centre (Cached)",
+          "units": 8
+        }
+      ],
+      "is_fallback": true,
+      "last_error": "HTTP 503 Internal Server Error from upstream eRaktKosh gateway"
+    }
+  },
+  {
+    "mode": 3,
+    "name": "Circuit Breaker Fast-Fail to Cache",
+    "result": {
+      "endpoint": "https://eraktkosh.mohfw.gov.in/eraktkoshPortal/eraktkosh/bloodbank/nearest",
+      "retries": 0,
+      "failure_type": "CIRCUIT_OPEN_FAST_FAIL",
+      "circuit_state": "OPEN",
+      "recovery_behaviour": "FAST_FAIL_TO_CACHE",
+      "user_visible_behaviour": "Displaying verified cached facilities with stale warning indicator",
+      "success": false,
+      "data": [
+        {
+          "hospitalCode": "1001",
+          "name": "KEM Hospital Blood Centre (Cached)",
+          "units": 15
+        },
+        {
+          "hospitalCode": "1002",
+          "name": "Tata Memorial Centre (Cached)",
+          "units": 8
+        }
+      ],
+      "is_fallback": true
+    }
+  },
+  {
+    "mode": 4,
+    "name": "Empty Response Body",
+    "result": {
+      "endpoint": "https://eraktkosh.mohfw.gov.in/eraktkoshPortal/eraktkosh/bloodbank/nearest",
+      "retries": 2,
+      "failure_type": "EMPTY_PAYLOAD_ERROR",
+      "circuit_state": "OPEN",
+      "recovery_behaviour": "SERVE_STALE_VERIFIED_CACHE",
+      "user_visible_behaviour": "Upstream eRaktKosh API unresponsive. Displaying verified local backup inventory (Updated recently).",
+      "success": false,
+      "data": [
+        {
+          "hospitalCode": "1001",
+          "name": "KEM Hospital Blood Centre (Cached)",
+          "units": 15
+        },
+        {
+          "hospitalCode": "1002",
+          "name": "Tata Memorial Centre (Cached)",
+          "units": 8
+        }
+      ],
+      "is_fallback": true,
+      "last_error": "Received empty or null payload from upstream registry"
+    }
+  },
+  {
+    "mode": 5,
+    "name": "Malformed / Non-JSON Response",
+    "result": {
+      "endpoint": "https://eraktkosh.mohfw.gov.in/eraktkoshPortal/eraktkosh/bloodbank/nearest",
+      "retries": 2,
+      "failure_type": "MALFORMED_JSON_ERROR",
+      "circuit_state": "OPEN",
+      "recovery_behaviour": "SERVE_STALE_VERIFIED_CACHE",
+      "user_visible_behaviour": "Upstream eRaktKosh API unresponsive. Displaying verified local backup inventory (Updated recently).",
+      "success": false,
+      "data": [
+        {
+          "hospitalCode": "1001",
+          "name": "KEM Hospital Blood Centre (Cached)",
+          "units": 15
+        },
+        {
+          "hospitalCode": "1002",
+          "name": "Tata Memorial Centre (Cached)",
+          "units": 8
+        }
+      ],
+      "is_fallback": true,
+      "last_error": "Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "mode": 6,
+    "name": "Recovery after Failure (Self-Healing)",
+    "result": {
+      "endpoint": "https://eraktkosh.mohfw.gov.in/eraktkoshPortal/eraktkosh/bloodbank/nearest",
+      "retries": 0,
+      "failure_type": null,
+      "circuit_state": "CLOSED",
+      "recovery_behaviour": "DIRECT_SUCCESS",
+      "user_visible_behaviour": "Live registry data loaded successfully",
+      "success": true,
+      "data": [
+        {
+          "hospitalCode": "1001",
+          "name": "KEM Hospital",
+          "units": 16,
+          "status": "LIVE"
+        }
+      ],
+      "is_fallback": false
+    }
+  }
+]

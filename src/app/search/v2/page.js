@@ -87,7 +87,7 @@ export default function Search() {
             return;
         }
         if (coords.lng) params.append("longitude", coords.lng);
-        params.append("radius", 5000);
+        params.append("radius", 50000);
         // if (bloodComponentId) params.append("ComponentId", bloodComponentId);
         // if (bloodGroupId) params.append("bloodGroupId", bloodGroupId);
         console.log(params.toString());
@@ -99,9 +99,8 @@ export default function Search() {
         }
         console.log(response.data);
         setLoading(false);
-        //filter data based on blood component and group if provided
         setLoaded(true);
-        setLocationSearchResults(response.data);
+        setLocationSearchResults(Array.isArray(response.data) ? response.data : []);
     };
 
     const handleSearch = async (stateCode, districtCode, bloodComponentId, bloodGroupId) => {
@@ -122,9 +121,8 @@ export default function Search() {
         console.log(response.data);
         setLoading(false);
         if (response.status === 200) {
-            //handle the response data as needed
             setLoaded(true);
-            setSearchResults(response.data);
+            setSearchResults(Array.isArray(response.data) ? response.data : []);
         }
         else
             alert("Failed to fetch data. Please try again later.");
@@ -165,42 +163,41 @@ export default function Search() {
                 onChange={(e) => setStateCode(e.target.value)}
             >
                 <option value="">Select State</option>
-                {states.map(s => (
-                    <option key={s.stateCode} value={s.stateCode}>
-                        {s.stateName}
+                {states.map((state) => (
+                    <option key={state.stateCode} value={state.stateCode}>
+                        {state.stateName}
                     </option>
                 ))}
             </select>
 
-            {districts.length > 0 && ( //district dropdown, only shown if a state with districts is selected
-                <select
-                    value={districtCode}
-                    onChange={(e) => setDistrictCode(e.target.value)}
-                >
-                    <option value="">Select District</option>
-                    {districts.map(d => (
-                        <option key={d.districtCode} value={d.districtCode}>
-                            {d.districtName}
-                        </option>
-                    ))}
-                </select>
-            )}
-
-            <button className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400" //search button, disabled if no state is selected 
-                disabled={!stateCode || loading}
-                onClick={() => handleSearch(stateCode, districtCode, bloodComponentId, bloodGroupId)}
+            <select //district dropdown
+                value={districtCode}
+                onChange={(e) => setDistrictCode(e.target.value)}
+                disabled={!stateCode}
             >
-                Search
+                <option value="">Select District</option>
+                {districts.map((district) => (
+                    <option key={district.districtCode} value={district.districtCode}>
+                        {district.districtName}
+                    </option>
+                ))}
+            </select>
+
+            <button //search button
+                onClick={() => handleSearch(stateCode, districtCode, bloodComponentId, bloodGroupId)}
+                disabled={loading}
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+                {loading ? "Searching..." : "Search"}
             </button>
 
-            <button className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400" //search with location button, disabled if location is not available
-                disabled={coords === null || error !== "" || loading}
-                onClick={() => handleSearchWithLocation(bloodComponentId, bloodGroupId)}
+            <button //location search button
+                onClick={() => handleSearchWithLocation(coords, bloodComponentId, bloodGroupId)}
+                disabled={loading}
+                className="bg-blue-500 text-white px-4 py-2 rounded"
             >
                 Search with current location instead
             </button>
-
-
 
             {loaded && searchResults.length === 0 && locationSearchResults.length === 0 && (
                 <p>No results found.</p>
@@ -209,13 +206,13 @@ export default function Search() {
                 <div>
                     <h2 className="text-xl font-bold mb-2">Search Results:</h2>
                     <ul>
-                        {searchResults.map((result) => (
-                            <li key={result.hospitalCode} className="p-4 border-b">
-                                <h3 className="font-bold">{result.hospitalname}</h3>
-                                <p className="text-sm text-gray-600">{result.hospitaladd}</p>
+                        {searchResults.map((result, idx) => (
+                            <li key={result.hospitalCode || idx} className="p-4 border-b">
+                                <h3 className="font-bold">{result.hospitalname || result.name}</h3>
+                                <p className="text-sm text-gray-600">{result.hospitaladd || result.address}</p>
 
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    {Object.entries(result.components).map(([name, info]) => {
+                                    {Object.entries(result.components || {}).map(([name, info]) => {
                                         const isAvailable = info?.available_WithQty && info.available_WithQty.trim() !== "";
                                         return isAvailable ? (
                                             <span key={name} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
@@ -233,12 +230,15 @@ export default function Search() {
                 <div>
                     <h2 className="text-xl font-bold mb-2">Search Results based on location:</h2>
                     <ul>
-                        {locationSearchResults.map((result) => (
-                            <li key={result.hospitalCode}>{result.name}<br />{result.address}   {round(result.dist / 1000, 2)} km <br/>
-                            <button onClick={() => getInfo(result.hospitalCode,result.stateCode)}
-                                className="bg-green-500 text-white px-4 py-2 rounded">Get info
+                        {locationSearchResults.map((result, idx) => (
+                            <li key={result.hospitalCode || idx} className="p-4 border-b">
+                                <h3 className="font-bold">{result.name || result.hospitalname}</h3>
+                                <p className="text-sm text-gray-600">{result.address || result.hospitaladd} {result.dist ? `• ${round(result.dist / 1000, 2)} km` : ""}</p>
+                                <button onClick={() => getInfo(result.hospitalCode, result.stateCode)}
+                                    className="bg-green-500 text-white px-3 py-1 text-xs rounded mt-1">
+                                    Get detailed stock
                                 </button>
-                                </li>
+                            </li>
                         ))}
                     </ul>
                 </div>

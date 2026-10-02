@@ -51,26 +51,39 @@ export default function CreateBloodRequestPage() {
     setError("");
 
     try {
+      const normalizedGroup = bloodGroup.replace(/ve/gi, "").trim();
+      const mappedUrgency = urgency === "HIGH" ? "CRITICAL" : (urgency === "MEDIUM" ? "URGENT" : urgency);
+
       const payload = {
         patientName,
         hospitalName,
+        hospital_name: hospitalName,
         hospitalAddress: hospitalAddress || locationLabel,
+        hospital_address: hospitalAddress || locationLabel,
         bloodGroup,
+        blood_group: normalizedGroup,
         bloodComponent,
+        component: bloodComponent,
         unitsNeeded: Number(unitsNeeded),
-        urgency,
+        units_required: Number(unitsNeeded),
+        urgency: mappedUrgency,
         expiryHours: Number(expiryHours),
+        deadline_minutes: Number(expiryHours) * 60,
         requesterName,
         requesterPhone,
+        lat: coords.lat,
+        lng: coords.lng,
         location: {
           lat: coords.lat,
           lng: coords.lng
-        }
+        },
+        additional_message: `Emergency request for ${patientName} at ${hospitalName}`
       };
 
       const res = await axios.post("/api/requests", payload);
-      if (res.status === 201 && res.data?.requestId) {
-        router.push(`/requests/${res.data.requestId}`);
+      const newId = res.data?.request?.id || res.data?.requestId;
+      if (res.status === 201 && newId) {
+        router.push(`/requests/${newId}`);
       } else {
         setError(res.data?.error || "Failed to create emergency request");
       }

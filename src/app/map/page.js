@@ -7,7 +7,15 @@ import LocationPrompt from "@/app/components/LocationPrompt";
 import { MonoData, VerifiedBadge } from "@/app/components/ui/Badge";
 import { getPreciseLiveLocation } from "@/lib/geo/location";
 
-const EnhancedMap = dynamic(() => import("@/app/components/EnhancedMap.js"), { ssr: false });
+const EnhancedMap = dynamic(() => import("@/app/components/EnhancedMap.js"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex flex-col items-center justify-center bg-gray-50 dark:bg-[#101720] text-secondary-var space-y-3">
+      <div className="w-8 h-8 border-2 border-[#D62828] border-t-transparent rounded-full animate-spin" />
+      <span className="font-mono text-xs">Loading Geospatial Engine...</span>
+    </div>
+  )
+});
 
 export default function MapExplorerPage() {
   const [userLocation, setUserLocation] = useState(null);
@@ -32,9 +40,12 @@ export default function MapExplorerPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchNearbyFacilities = async (lat, lng, radius) => {
+  const fetchNearbyFacilities = async (lat, lng, radius, signal) => {
     try {
-      const res = await axios.get(`/api/hospitals/nearby?lat=${lat}&lng=${lng}&radiusKm=${radius}`);
+      const res = await axios.get(`/api/hospitals/nearby?lat=${lat}&lng=${lng}&radiusKm=${radius}`, {
+        timeout: 6000,
+        signal
+      });
       if (res.status === 200) {
         const facilities = res.data.facilities || [];
         setFacilityData({
@@ -43,45 +54,58 @@ export default function MapExplorerPage() {
         });
       }
     } catch (err) {
-      console.error("Failed to load nearby facilities:", err);
+      if (err.name !== "CanceledError" && !axios.isCancel(err)) {
+        console.error("Failed to load nearby facilities:", err);
+      }
     }
   };
 
-  const fetchLayerData = async () => {
+  const fetchLayerData = async (signal) => {
     try {
       setLoading(true);
-      const res = await axios.get("/api/map/layers");
-      if (res.status === 200 && res.data.emergencies) {
-        setLayerData(res.data);
+      const res = await axios.get("/api/map/layers", {
+        timeout: 4000,
+        signal
+      });
+      if (res.status === 200 && res.data) {
+        setLayerData({
+          emergencies: res.data.emergencies || [],
+          bloodBanks: res.data.bloodBanks || [],
+          hospitals: res.data.hospitals || [],
+          donors: res.data.donors || [],
+          shortageHeatmap: []
+        });
       } else {
         setLayerData({
-          emergencies: [
-            { id: "e1", lat: 18.5204, lng: 73.8567, urgency: "CRITICAL", bloodGroup: "O-", patientName: "Rahul M.", hospitalName: "City General Hospital", unitsNeeded: 3 },
-            { id: "e2", lat: 19.0760, lng: 72.8777, urgency: "URGENT", bloodGroup: "A+", patientName: "Priya S.", hospitalName: "Apex Trauma Care", unitsNeeded: 2 }
-          ],
-          bloodBanks: [
-            { id: "b1", lat: 18.5254, lng: 73.8617, name: "Regional Blood Bank Storage", address: "Medical College Gate 2" },
-            { id: "b2", lat: 19.0820, lng: 72.8890, name: "Metro Blood Bank", address: "Central Ward Bypass" }
-          ],
-          donors: [
-            { id: "d1", lat: 18.5224, lng: 73.8507, bloodGroup: "O+" },
-            { id: "d2", lat: 18.5184, lng: 73.8607, bloodGroup: "A+" },
-            { id: "d3", lat: 19.0700, lng: 72.8800, bloodGroup: "O-" }
-          ],
-          shortageHeatmap: [
-            { lat: 18.5204, lng: 73.8567, weight: 0.8 }
-          ]
+          emergencies: [],
+          bloodBanks: [],
+          hospitals: [],
+          donors: [],
+          shortageHeatmap: []
         });
       }
     } catch (err) {
-      console.error("Failed to load map layer data:", err);
+      if (err.name !== "CanceledError" && !axios.isCancel(err)) {
+        console.error("Failed to load map layer data:", err);
+      }
+      setLayerData({
+        emergencies: [],
+        bloodBanks: [],
+        hospitals: [],
+        donors: [],
+        shortageHeatmap: []
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLayerData();
+    const controller = new AbortController();
+    fetchLayerData(controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   const handleLocationGranted = (coords) => {

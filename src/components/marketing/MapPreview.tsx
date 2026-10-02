@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import MapView from "@/components/maps/MapView";
+import dynamic from "next/dynamic";
+
+const MapView = dynamic(() => import("@/components/maps/MapView"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full rounded-2xl bg-[#182233] animate-pulse flex items-center justify-center">
+      <span className="text-[#5B6472] text-sm font-mono">Loading map...</span>
+    </div>
+  ),
+});
 
 export default function MapPreview() {
   const previewMarkers = [

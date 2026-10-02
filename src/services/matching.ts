@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getCompatibleDonorGroups } from "@/lib/matching/compatibility";
 import { computeMatchScore, type DonorCandidate } from "@/lib/matching/scorer";
 
-const EXPANDING_RADII_METERS = [5000, 10000, 20000, 50000];
+const EXPANDING_RADII_METERS = [3000, 10000, 25000, 50000, 90000];
 
 export async function processEmergencyMatching(requestId: string, recipientBloodGroup: string, requestLocationWkt: string) {
   const supabase = createAdminClient();
@@ -11,13 +11,13 @@ export async function processEmergencyMatching(requestId: string, recipientBlood
   let foundDonors: any[] = [];
   let matchedRadiusMeters = 0;
 
-  // Expanding radius search: 5km -> 10km -> 20km -> 50km
+  // Expanding radius search: 3km -> 10km -> 25km -> 50km -> 90km
   for (const radiusMeters of EXPANDING_RADII_METERS) {
     const { data: donors, error } = await supabase.rpc("find_nearby_donors", {
       request_location: requestLocationWkt,
       blood_groups: compatibleGroups,
       radius_meters: radiusMeters,
-      limit_count: 20
+      limit_count: 25
     });
 
     if (error) {
@@ -26,9 +26,13 @@ export async function processEmergencyMatching(requestId: string, recipientBlood
     }
 
     if (donors && donors.length > 0) {
-      foundDonors = donors;
-      matchedRadiusMeters = radiusMeters;
-      break;
+      // Filter only clinically eligible donors (is_eligible !== false)
+      const eligible = donors.filter((d: any) => d.is_eligible !== false);
+      if (eligible.length > 0) {
+        foundDonors = eligible;
+        matchedRadiusMeters = radiusMeters;
+        break;
+      }
     }
   }
 
@@ -39,7 +43,7 @@ export async function processEmergencyMatching(requestId: string, recipientBlood
       .update({ status: "SEARCHING", updated_at: new Date().toISOString() })
       .eq("id", requestId);
 
-    return { success: false, matchedCount: 0, message: "No compatible donors found within 50 km radius" };
+    return { success: false, matchedCount: 0, message: "No compatible eligible donors found within 90 km radius" };
   }
 
   // Score and rank candidates

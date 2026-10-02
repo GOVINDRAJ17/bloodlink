@@ -1,0 +1,25 @@
+scenario_num,scenario_title,candidate_id,candidate_name,source_type,blood_group,distance_km,total_eta_min,available_units,s_compat,s_dist,s_eta,s_rel,s_fresh,s_stock,final_score_normalized,final_score_100,rank,compat_tier
+1,Exact compatible source very near patient,BB-01-EXACT-NEAR,Tata Memorial Blood Centre (Parel),BLOOD_BANK,A+,0.46,21.3,12,1.0,0.9846666666666667,0.8583,0.964,0.9439,1.0,0.9576,95.76,1,EXACT
+1,Exact compatible source very near patient,BB-01-EXACT-FAR,Lilavati Hospital Blood Bank (Bandra),BLOOD_BANK,A+,6.61,38.1,8,1.0,0.7796666666666666,0.7122,0.94,0.7937,1.0,0.8687,86.87,2,EXACT
+1,Exact compatible source very near patient,BB-01-SUB-MID,KEM Red Cross Bank,BLOOD_BANK,O+,2.77,27.6,20,0.8,0.9076666666666666,0.8035,0.955,0.8909,1.0,0.8546,85.46,3,COMPATIBLE_SUBSTITUTE
+2,Compatible substitute farther away vs nearby alternative,BB-02-SUB-CLOSE,Hinduja Hospital Blood Bank (Mahim),BLOOD_BANK,A+,4.58,32.6,15,0.85,0.8855,0.76,0.961,0.9439,1.0,0.8651,86.51,1,COMPATIBLE_SUBSTITUTE
+2,Compatible substitute farther away vs nearby alternative,BB-02-SUB-O-CLOSE,Sion Municipal Hospital Blood Bank,BLOOD_BANK,O+,5.46,35.0,25,0.8,0.8634999999999999,0.7391,0.952,0.8909,1.0,0.8324,83.24,2,COMPATIBLE_SUBSTITUTE
+2,Compatible substitute farther away vs nearby alternative,BB-02-EXACT-FAR,Kokilaben Dhirubhai Ambani Blood Bank (Andheri),BLOOD_BANK,AB+,15.42,62.3,4,1.0,0.6145,0.5017,0.958,0.917,1.0,0.8086,80.86,3,EXACT
+3,Critical emergency with limited compatible sources,BB-03-BNEG-URGENT,Wadia Children Blood Bank,BLOOD_BANK,B-,0.65,6.1,2,1.0,0.987,0.9904,0.955,0.9715,0.5,0.9859,98.59,1,EXACT
+3,Critical emergency with limited compatible sources,BB-03-ONEG-SUB,Sir H.N. Reliance Foundation Hospital,BLOOD_BANK,O-,4.77,13.1,5,0.85,0.9046000000000001,0.9296,0.964,0.9548,1.0,0.9044,90.44,2,COMPATIBLE_SUBSTITUTE
+3,Critical emergency with limited compatible sources,BB-03-INCOMPAT,Nair Charitable Hospital Blood Bank,BLOOD_BANK,B+,2.99,10.1,18,0.0,0.9402,0.9557,0.967,0.9885,1.0,0.0,0.0,3,INCOMPATIBLE
+4,Rural location with sparse blood banks,RURAL-04-COMMUNITY-DONOR,Registered Voluntary Donor (Dindori Village),DONOR,O+,1.14,22.4,1,1.0,0.98575,0.8487,0.893,0.9942,0.5,0.9503,95.03,1,EXACT
+4,Rural location with sparse blood banks,RURAL-04-DISTANT-CIVIL,Nashik Civil District Hospital,BLOOD_BANK,O+,23.14,61.4,14,1.0,0.71075,0.5096,0.946,0.8409,1.0,0.8201,82.01,2,EXACT
+4,Rural location with sparse blood banks,RURAL-04-FAR-TRUST,Malegaon Sub-District Blood Centre,BLOOD_BANK,O+,82.44,187.9,30,1.0,0.0,0.0,0.925,0.63,1.0,0.5517,55.17,3,EXACT
+5,Nearest source has stale inventory data,BB-05-FRESH-MID,Cama & Albless Hospital Blood Bank,BLOOD_BANK,A+,5.89,36.2,10,1.0,0.8036666666666666,0.7287,0.964,0.933,1.0,0.8944,89.44,1,EXACT
+5,Nearest source has stale inventory data,BB-05-STALE-CLOSE,Municipal Dispensary Blood Unit,BLOOD_BANK,A+,0.3,20.8,6,1.0,0.99,0.8626,0.73,0.0625,1.0,0.8363,83.63,2,EXACT
+6,Reliable source farther away vs unreliable source nearby,SRC-06-RELIABLE-FAR,Breach Candy Hospital Trust,BLOOD_BANK,O+,4.56,32.5,12,1.0,0.848,0.7609,0.993,0.9439,1.0,0.9151,91.51,1,EXACT
+6,Reliable source farther away vs unreliable source nearby,SRC-06-UNRELIABLE-NEAR,Unaccredited Community Depot,BLOOD_BANK,O+,0.86,22.4,5,1.0,0.9713333333333334,0.8487,0.585,0.7937,1.0,0.8811,88.11,2,EXACT
+7,Proximity vs inventory depth (nearest single-unit vs distant multi-unit bank),BB-07-LOW-STOCK-NEAR,Local Nursing Home Stash,BLOOD_BANK,B+,0.57,21.6,1,1.0,0.981,0.8557,0.925,0.9439,0.25,0.9505,95.05,1,EXACT
+7,Proximity vs inventory depth (nearest single-unit vs distant multi-unit bank),BB-07-HIGH-STOCK-MID,Jaslok Hospital Research Centre,BLOOD_BANK,B+,4.22,31.6,15,1.0,0.8593333333333333,0.7687,0.961,0.917,1.0,0.9115,91.15,2,EXACT
+8,Same distance but different ETA,SRC-08-BANK-FAST-ETA,Masina Hospital Blood Bank,BLOOD_BANK,O-,2.56,9.4,3,1.0,0.9146666666666666,0.9617,0.955,0.9439,1.0,0.9629,96.29,1,EXACT
+8,Same distance but different ETA,SRC-08-DONOR-SLOW-ETA,Voluntary Donor Rahul S.,DONOR,O-,2.56,14.4,1,1.0,0.9146666666666666,0.9183,0.8925,0.9715,1.0,0.9476,94.76,2,EXACT
+9,Different component type (Platelets),BB-09-PLATELET-EXACT,Rotary Club Blood Bank (Parel),BLOOD_BANK,O-,0.97,14.1,3,1.0,0.9676666666666667,0.9209,0.94,0.9439,1.0,0.9631,96.31,1,EXACT
+9,Different component type (Platelets),BB-09-PLATELET-COMPAT,Saifee Hospital Blood Bank (Charni Road),BLOOD_BANK,A-,5.13,22.9,6,0.8,0.829,0.8443,0.94,0.917,1.0,0.8474,84.74,2,COMPATIBLE_SUBSTITUTE
+10,No compatible source within initial search radius (Rare Bombay Phenotype),BB-10-FAR-BOMBAY-EXPANDED,National Institute of Immunohematology (NIIH Registry),BLOOD_BANK,Oh+,14.61,29.9,2,1.0,0.0,0.7835,0.94,0.8909,1.0,0.7368,73.68,1,EXACT
+10,No compatible source within initial search radius (Rare Bombay Phenotype),BB-10-LOCAL-INCOMPAT,Nearby Standard Blood Bank,BLOOD_BANK,O-,0.18,5.3,10,0.0,0.982,0.9974,0.94,0.9715,1.0,0.0,0.0,2,INCOMPATIBLE

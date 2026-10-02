@@ -111,8 +111,8 @@ export default function Search() {
             return;
         }
         if (coords.lng) params.append("longitude", coords.lng);
-        const range = { 'urban': [3000,5000,10000], 'rural': [10000, 30000, 90000] };
-        const is_urban = true;//logic to be implemented 
+        const range = { 'urban': [10000, 30000, 50000, 100000], 'rural': [20000, 50000, 100000] };
+        const is_urban = true;
         for (let r of (is_urban ? range.urban : range.rural)) {
             params.delete("radius");
             params.append("radius", r);
@@ -123,65 +123,77 @@ export default function Search() {
                 setLoading(false);
                 return;
             }
-            if (response.data.length === 0) {
+            if (!Array.isArray(response.data) || response.data.length === 0) {
                 console.log(`No results within ${r} meters. Expanding search radius...`);
                 continue;
             }
-            // if (!bloodComponentId && !bloodGroupId) { //if no filters, show all results from nearest api
-            //     setLocationSearchResults(response.data);
-            //     break;
-            // }
-            //getstatecodes unique
-            const stateCodes = [...new Set(response.data.map(item => item.stateCode))];
-            const hospitalCodes = response.data.map(item => item.hospitalCode);
-            if (stateCodes.length === 0) {
-                console.log("No statecodes found.");
-                continue;
+
+            // If no specific component or group filter requested, return all nearest hospitals & blood banks
+            if (!bloodComponentId && !bloodGroupId) {
+                const mapped = response.data.map(item => ({
+                    ...item,
+                    hospitalname: item.hospitalname || item.name,
+                    hospitaladd: item.hospitaladd || item.address,
+                    components: item.components || {}
+                }));
+                setLocationSearchResults(mapped);
+                break;
             }
+
+            // If specific filters are applied, match against availability
+            const stateCodes = [...new Set(response.data.map(item => item.stateCode).filter(Boolean))];
             const nearestMap = new Map(
                 response.data.map(item => [String(item.hospitalCode), item])
-            );            //filter 
+            );
             var filteredResults = [];
             for (let sc of stateCodes) {
                 const p2 = new URLSearchParams();
                 p2.set("stateCode", sc);
                 if (bloodComponentId) p2.append("ComponentId", bloodComponentId);
                 if (bloodGroupId) p2.append("bloodGroupId", bloodGroupId);
-                const res = await axios.get(`/api/search?${p2.toString()}`, {});
-                if (res.status !== 200) {
-                    alert("Failed to fetch data. Please try again later.");
-                    setLoading(false);
-                    return;
+                try {
+                    const res = await axios.get(`/api/search?${p2.toString()}`, {});
+                    if (Array.isArray(res.data)) {
+                        const filtered = res.data
+                            .filter(item => nearestMap.has(String(item.hospitalCode)))
+                            .map(item => {
+                                const nearest = nearestMap.get(String(item.hospitalCode));
+                                return {
+                                    ...item,
+                                    hospitalname: item.hospitalname || nearest.name,
+                                    hospitaladd: item.hospitaladd || nearest.address,
+                                    dist: nearest.dist,
+                                    lat: nearest.latitude,   
+                                    lng: nearest.longitude,
+                                    components: item.components || {}
+                                };
+                            });
+                        filteredResults.push(...filtered);
+                    }
+                } catch (searchErr) {
+                    console.warn("Availability search failed for state:", sc);
                 }
-                console.log(res.data);
-                console.log(response.data);
-                const filtered = res.data
-                    .filter(item => nearestMap.has(String(item.hospitalCode)))
-                    .map(item => {
-                        const nearest = nearestMap.get(String(item.hospitalCode));
-                        return {
-                            ...item,
-                            dist: nearest.dist,
-                            lat: nearest.latitude,   
-                            lng: nearest.longitude,  
-                        };
-                    });
-                filteredResults.push(...filtered);
             }
+
             if (filteredResults.length === 0) {
-                console.log("No results found.");
-                continue;
+                // If filter returned no items at this radius, show all nearest as fallback
+                const mapped = response.data.map(item => ({
+                    ...item,
+                    hospitalname: item.hospitalname || item.name,
+                    hospitaladd: item.hospitaladd || item.address,
+                    components: item.components || {}
+                }));
+                setLocationSearchResults(mapped);
+                break;
             }
+
             filteredResults.sort((a, b) => (a.dist ?? Infinity) - (b.dist ?? Infinity));
-            console.log(filteredResults);
             setLocationSearchResults(filteredResults);
             break;
         }
 
-        //filter ends here
         setLoading(false);
         setLoaded(true);
-        // setLocationSearchResults(response.data);
     };
 
     const handleSearch = async (stateCode, districtCode, bloodComponentId, bloodGroupId) => {
@@ -306,13 +318,13 @@ export default function Search() {
                 <div>
                     <h2 className="text-xl font-bold mb-2">Search Results:</h2>
                     <ul>
-                        {searchResults.map((result) => (
-                            <li key={result.hospitalCode} className="p-4 border-b">
-                                <h3 className="font-bold">{result.hospitalname}</h3>
-                                <p className="text-sm text-gray-600">{result.hospitaladd}</p>
+                        {searchResults.map((result, idx) => (
+                            <li key={result.hospitalCode || idx} className="p-4 border-b">
+                                <h3 className="font-bold">{result.hospitalname || result.name}</h3>
+                                <p className="text-sm text-gray-600">{result.hospitaladd || result.address}</p>
 
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    {Object.entries(result.components).map(([name, info]) => {
+                                    {Object.entries(result.components || {}).map(([name, info]) => {
                                         const isAvailable = info?.available_WithQty && info.available_WithQty.trim() !== "";
                                         return isAvailable ? (
                                             <span key={name} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
@@ -330,10 +342,12 @@ export default function Search() {
                 <div>
                     <h2 className="text-xl font-bold mb-2">Search Results based on location:</h2>
                     <ul>
-                        {locationSearchResults.map((result) => (
-                            <li key={result.hospitalCode}>{result.hospitalname}<br />{result.hospitaladd}   {round(result.dist / 1000, 2)} km <br />
+                        {locationSearchResults.map((result, idx) => (
+                            <li key={result.hospitalCode || idx} className="p-4 border-b">
+                                <h3 className="font-bold">{result.hospitalname || result.name}</h3>
+                                <p className="text-sm text-gray-600">{result.hospitaladd || result.address} • {result.dist ? `${round(result.dist / 1000, 2)} km` : "Nearby"}</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    {Object.entries(result.components).map(([name, info]) => {
+                                    {Object.entries(result.components || {}).map(([name, info]) => {
                                         const isAvailable = info?.available_WithQty && info.available_WithQty.trim() !== "";
                                         return isAvailable ? (
                                             <span key={name} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">

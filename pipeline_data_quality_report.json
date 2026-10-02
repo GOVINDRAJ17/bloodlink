@@ -1,0 +1,129 @@
+{
+  "data_provenance": "SYNTHETIC_SIMULATED_NATIONAL_ERAKTKOSH_DATASET_N4487",
+  "is_synthetic": true,
+  "pipeline_funnel": {
+    "1_raw_ingested": 4487,
+    "2_standardized": 4487,
+    "3_validation_passed": 4298,
+    "4_invalid_rejected": 189,
+    "5_duplicate_merges": 134,
+    "6_final_clean_records": 4164
+  },
+  "retention_rate_pct": 92.8,
+  "duplicate_rate_pct": 3.12,
+  "validation_rule_failures": {
+    "RULE_MISSING_NAME": 0,
+    "RULE_MISSING_COORDINATES": 94,
+    "RULE_COORDINATES_OUTSIDE_INDIA": 45,
+    "RULE_NULL_ISLAND_COORDINATES": 50,
+    "RULE_NO_VALID_BLOOD_GROUPS": 0,
+    "RULE_INVALID_PHONE": 124,
+    "RULE_NEGATIVE_STOCK": 0,
+    "RULE_FUTURE_TIMESTAMP": 0
+  },
+  "reconciliation_explanation": {
+    "missing_coordinates": 94,
+    "null_island_coordinates": 50,
+    "out_of_bounds_international": 45,
+    "sum_coordinate_defects": 189,
+    "invalid_phone_warnings": 124,
+    "unique_invalid_rejected": 189,
+    "arithmetic_check": "94 (missing) + 50 (null island) + 45 (out of bounds) = 189 fatal coordinate failures -> exactly 189 rejected records.",
+    "overlap_matrix": {
+      "coordinate_defects_only": 183,
+      "phone_defects_only": 118,
+      "both_coordinate_and_phone_defects": 6,
+      "total_coordinate_defects": 189,
+      "total_phone_defects": 124,
+      "historical_fatal_phone_total_rejected": 307,
+      "current_policy_total_rejected": 189,
+      "reconciliation_arithmetic": "Historical policy: 189 (coords) + 124 (phones) - 6 (overlap) = 307 rejected. Current policy: phones are non-fatal (flagged no_sms_alert=True), leaving exactly 189 coordinate-deficient records rejected."
+    }
+  },
+  "real_data_source_guidance": {
+    "required_dataset": "data.gov.in Blood Bank Directory / eRaktKosh National Portal Export",
+    "portal_url": "https://www.data.gov.in/resource/blood-bank-directory",
+    "live_eraktkosh_url": "https://eraktkosh.mohfw.gov.in/BLDAHIMS/bloodbank/stockAvailability.cnt",
+    "expected_fields": [
+      "hospitalCode / sr_no",
+      "hospitalname / blood_bank_name",
+      "state",
+      "district",
+      "hospitalcontact / contact_no",
+      "latitude",
+      "longitude",
+      "components",
+      "bloodGroupAvailable"
+    ],
+    "cli_command": "python -m src.pipeline.cli_pipeline --input-csv /path/to/real_eraktkosh_export.csv"
+  },
+  "coordinate_health": {
+    "valid_coordinates_in_india": 4298,
+    "valid_pct": 95.79,
+    "missing_coordinates": 94,
+    "null_island_zeros": 50,
+    "out_of_bounds_international": 45
+  },
+  "missing_fields_analysis": {
+    "raw_id": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "hospital_name": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "state_code": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "state_name": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "district_name": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "address": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "latitude": {
+      "missing_count": 94,
+      "missing_percentage": 2.09
+    },
+    "longitude": {
+      "missing_count": 94,
+      "missing_percentage": 2.09
+    },
+    "phone": {
+      "missing_count": 211,
+      "missing_percentage": 4.7
+    },
+    "email": {
+      "missing_count": 681,
+      "missing_percentage": 15.18
+    },
+    "hospital_type": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "blood_groups_available": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "available_units": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "verified": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    },
+    "last_updated_at": {
+      "missing_count": 0,
+      "missing_percentage": 0.0
+    }
+  }
+}

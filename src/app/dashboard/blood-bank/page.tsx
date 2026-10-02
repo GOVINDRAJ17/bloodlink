@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { VerifiedBadge, MonoData } from "@/app/components/ui/Badge";
+import { useAuth } from "@/context/AuthContext";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 export default function BloodBankDashboardPage() {
   const supabase = createClient();
+  const { user, loading: authLoading } = useAuth();
 
   const [bankProfile, setBankProfile] = useState<any>(null);
   const [inventory, setInventory] = useState<Record<string, number>>({});
@@ -17,22 +19,21 @@ export default function BloodBankDashboardPage() {
   const fetchBankData = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: bank } = await supabase
         .from("blood_bank_profiles")
-        .select("*")
+        .select("id, user_id, blood_bank_name, verified, phone, address")
         .eq("user_id", user.id)
         .single();
 
       if (bank) {
         setBankProfile(bank);
 
-        // Fetch inventory rows
+        // Fetch inventory rows with only needed fields
         const { data: items } = await supabase
           .from("blood_inventory")
-          .select("*")
+          .select("blood_group, units_available")
           .eq("blood_bank_id", bank.id);
 
         const stockMap: Record<string, number> = {};
@@ -53,8 +54,10 @@ export default function BloodBankDashboardPage() {
   };
 
   useEffect(() => {
-    fetchBankData();
-  }, []);
+    if (!authLoading) {
+      fetchBankData();
+    }
+  }, [authLoading, user]);
 
   const handleUpdateStock = async (bloodGroup: string, delta: number) => {
     if (!bankProfile) return;

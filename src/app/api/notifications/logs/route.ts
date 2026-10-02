@@ -14,8 +14,13 @@ export async function GET() {
       }, { status: 200 });
     }
 
+    const { safeSupabaseQuery } = await import("@/lib/supabase/safeQuery");
     const supabase = await createClient();
-    const { data: logs } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(20);
+    const { data: logs } = await safeSupabaseQuery(
+      () => supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(20),
+      { data: [] } as any,
+      1500
+    );
 
     return NextResponse.json({ logs: logs || [] }, { status: 200 });
 
